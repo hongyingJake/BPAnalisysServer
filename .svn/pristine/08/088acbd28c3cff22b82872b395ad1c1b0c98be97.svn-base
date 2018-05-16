@@ -1,0 +1,45 @@
+package com.bp.bll;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.simple.ParameterizedBeanPropertyRowMapper;
+
+import com.bp.models.*;
+
+/**
+ * @author zyk
+ * @version 创建时间：2017年8月8日 下午4:24:51 埋点注册等信息数据库访问类 类说明
+ */
+public class BPRegistDAL {
+	private JdbcTemplate jdbcTemplate;
+	public void setJdbcTemplate(JdbcTemplate jdbcTemplate) {  
+        this.jdbcTemplate = jdbcTemplate;  
+    }  
+    public JdbcTemplate getJdbcTemplate() {  
+        return jdbcTemplate;  
+    }  
+	public List find() {
+		String sql = "select * from BPSubPoints";
+		return jdbcTemplate.query(sql, new UserMapper());
+	}
+	/* 
+     * 因为query方法不能直接放回一个数组，所以我们只能通过rowMapper赋值给BPSubPoints; 
+     * RowMapper可以将数据中的每一行封装成用户定义的类，在数据库查询中，如果返回的类型是用户自定义的类型则需要包装 
+     */  
+    private static final class UserMapper implements RowMapper{  
+        public Object mapRow(ResultSet rs, int rowNum) throws SQLException {  
+            // TODO Auto-generated method stub  
+        	BPSubPointsModel model=new BPSubPointsModel();  
+        	model.BPKName=rs.getString("BPKName");
+        	model.BPKValue=rs.getString("BPKValue");
+        	//model.setId(rs.getInt("id"));  
+            return model;  
+        }  
+    }
+    
+      
+}

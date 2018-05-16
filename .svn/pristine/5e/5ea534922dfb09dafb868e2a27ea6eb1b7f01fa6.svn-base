@@ -1,0 +1,47 @@
+package com.bp.bll;
+
+import com.bp.msginterface.*;
+import com.bp.msgfactory.*;
+import com.bp.common.*;
+/**
+* @author zyk
+* @version 创建时间：2017年8月7日 上午11:20:20
+* 添加消息到消息队列  业务层
+*/
+public class DataMQBLL {
+	/**
+	 * 消息队列实现
+	 */
+	public IBaseMQ getbaseMQ()
+	{
+		return MQFactory.GetMQInfo();
+	}
+	/**
+	 * 保存消息到消息队列
+	 * @param val
+	 */
+	public void AddMQInfo(String tabName,Object val)
+	{
+		if(BPFlg.getMSMQServerCanUse())
+		{
+			try
+			{
+				getbaseMQ().SaveMQInfo(tabName,val);
+			}
+			catch(Exception e)
+			{
+				e.printStackTrace();
+				//BPFlg.setMSMQServerCanUse(false);
+				//记录日志
+				LogWritter.LogWritterInfo(DataMQBLL.class, LogEnum.Error, "消息添加到消息队列异常，消息已经持久化本地，异常："+e.toString());
+				//消息持久化到本地
+				SaveMQLocal.SaveMQToTxt(val);
+			}
+		}
+		else
+		{
+			//消息持久化到本地
+			SaveMQLocal.SaveMQToTxt(val);
+		}
+	}
+}

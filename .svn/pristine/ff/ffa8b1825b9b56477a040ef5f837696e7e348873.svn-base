@@ -1,0 +1,156 @@
+package com.bp.common;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
+import net.sf.json.JsonConfig;
+
+/**
+ * JSON������
+ * 
+ * @author aaa
+ *
+ */
+public class JsonUtility {
+	
+	
+
+	/**
+	 * �ж�JSON�ַ��Ƿ�ΪJSON��ʽ
+	 * 
+	 * @param jsonStr
+	 * @return
+	 */
+	public static boolean IsJSON(String jsonStr) {
+		// �ж��Ƿ���JSON����
+		if (jsonStr.charAt(0) == '[') {
+			String strSum = jsonStr.substring(1, jsonStr.length() - 2);
+			String[] tempSum = strSum.split("},");
+			boolean isJson = true;
+			for (int i = 0; i < tempSum.length; i++) {
+				if (!IsSingleJson(tempSum[i] + "}")) {
+					isJson = false;
+					break;
+				}
+			}
+			return isJson;
+		} else {
+			return IsSingleJson(jsonStr);
+		}
+
+	}
+
+	/**
+	 * �ж�һ���ַ��Ƿ�Ϊ��һJSON����
+	 * 
+	 * @param json
+	 *            JSON�ַ�
+	 * @return
+	 */
+	private static boolean IsSingleJson(String json) {
+		try {
+			JSONObject jsonObject = JSONObject.fromObject(json);
+			return true;
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
+	/**
+	 * ��JSON����ת����Map<String, List<Map<String, String>>>
+	 * 
+	 * @param key
+	 *            ���ע��Key
+	 * @param jsonContent
+	 *            �����Ϣ JSON�ַ�(֧������)
+	 * @return
+	 */
+	public static Map<String, List<Map<String, String>>> JSON2Map(String key, String jsonContent) throws Exception {
+		Map<String, List<Map<String, String>>> map = new HashMap<String, List<Map<String, String>>>();
+		List<Map<String, String>> listM = new ArrayList<Map<String, String>>();
+		try {
+			//0:JSON���������л���ʱ����ʱ�����л��з�ѻ��з��滻���ַ�
+			jsonContent = jsonContent.replaceAll("[\\t\\n\\r]", "");
+			// �ж��Ƿ���JSON����
+			if (jsonContent.charAt(0) == '[') {
+				String strSum = jsonContent.substring(1, jsonContent.length() - 2);
+				String[] tempSum = strSum.split("},");
+				for (int i = 0; i < tempSum.length; i++) {
+					Map<String, String> subMap = new HashMap<String, String>();
+					subMap = SingleJson2Map(tempSum[i] + "}");
+					listM.add(subMap);
+				}
+			} else {
+				Map<String, String> mapContent = new HashMap<String, String>();
+				mapContent = SingleJson2Map(jsonContent);
+				listM.add(mapContent);
+			}
+		} catch (Exception e) {
+			throw e;
+		}
+		map.put(key, listM);
+		return map;
+	}
+
+	/**
+	 * ��һJSON����ת����Map
+	 * 
+	 * @param jsonContent
+	 *            JSON��ʽ�ַ�
+	 * @return
+	 */
+	private static Map<String, String> SingleJson2Map(String jsonContent) {
+		Map<String, String> mapContent = new HashMap<String, String>();
+		JSONObject jsonO = JSONObject.fromObject(jsonContent);
+		// ����key��ת����map
+		Iterator<String> keys = jsonO.keys();
+		while (keys.hasNext()) {
+			String k = keys.next();
+			String v = jsonO.getString(k);
+
+			mapContent.put(k, v);
+		}
+		return mapContent;
+	}
+	/**
+	 * ����ת����JSON�ַ�
+	 * @param obj
+	 * @return
+	 */
+	public static String ObjToJSONStr(Object obj)
+	{
+		JSONObject jsonO=JSONObject.fromObject(obj);
+		return jsonO.toString();
+	}
+	/**
+	 * Map<String, List<Map<String, String>>>  �ַ�ת��Map����
+	 * @param mapJson Map<String, List<Map<String, String>>> ����ת���ɵ��ַ�
+	 * @return
+	 */
+	public static Map<String, List<Map<String, String>>> JSONStrToObj(String mapJson) throws Exception
+	{
+		//{"keyClickNumber":[{"BrowserType":"Firefox_54.0","elementID":"2017042001"}]}
+		String strSum = mapJson.substring(1, mapJson.length() - 2);
+		String[] sum=strSum.split(":\\[");
+		if(sum!=null&&sum.length==2)
+		{
+			try
+			{
+				return JSON2Map(sum[0].replaceAll("\"", ""),sum[1]);
+			}
+			catch(Exception e)
+			{
+				throw e;
+			}
+		}
+		else
+		{
+			return null;
+		}
+	}
+}

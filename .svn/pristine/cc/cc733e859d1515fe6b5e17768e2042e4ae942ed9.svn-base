@@ -1,0 +1,12 @@
+<!-- 客户端页面对麦田埋点服务JS的引用案例(必须引用jQuery.js) -->
+<script type="text/javascript">
+//定义全局配置对象
+var _configMT = _configMT || [];
+_configMT.push(['_setAsync', true]);
+  
+(function() {
+    var ma = document.createElement('script'); ma.type = 'text/javascript'; ma.async = true;
+    ma.src = ('https:' == document.location.protocol ? 'https://localhost' : 'http://localhost') + ':8080/BPAnalisysServer/mtscript/mtbp.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ma, s);
+})();
+</script>

@@ -1,0 +1,147 @@
+package com.bp;
+
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.view.json.MappingJackson2JsonView;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import com.bp.serverinterface.*;
+import com.bp.models.*;
+import com.bp.common.*;
+import com.bp.bll.*;
+/**
+ * 埋点服务API控制器
+ * @author aaa
+ *
+ */
+@RestController 
+public class WebPCApiController {
+	
+	/**
+	 * Get请求 记录埋点信息
+	 * @param key 请求埋点键
+	 * @param content 请求埋点的内容信息
+	 * @return
+	 */
+	@RequestMapping(value="/MtBPAPI",method=RequestMethod.GET)
+	public @ResponseBody ModelAndView Get(HttpServletRequest request) {
+		// TODO Auto-generated method stub
+		String key=request.getParameter("key");
+		String content=request.getParameter("content");
+		return AddMQ(key,content);
+	}
+	/**
+	 * 埋点系统POST请求
+	 * @param request
+	 * @return
+	 */
+	@RequestMapping(value = "/MtBPAPI", method = RequestMethod.POST,produces="application/json;charset=UTF-8")  
+    public @ResponseBody ModelAndView  Post(HttpServletRequest request) { 
+		//注意：ajax跨域POST请求，Content-Type要设置成application/x-www-form-urlencoded
+		//设置成：application/json在服务器端获取不到数据
+		String key=request.getParameter("key");
+		String content=request.getParameter("content");
+		return AddMQ(key,content);
+    }
+	/**
+	 * POST跨域请求时，会有一个OPTIONS 嗅探请求，需要服务器端处理，否则POST请求不成功
+	 * @return
+	 */
+	@RequestMapping(value = "/MtBPAPI", method = RequestMethod.OPTIONS)  
+    public @ResponseBody ModelAndView  Options() { 
+		return ResultInfoCommon.SuccessJson("OPTIONS嗅探请求成功!");
+    	//return ResultInfoCommon.SuccessFulInfo("OPTIONS嗅探请求成功!");
+    }
+	
+	/**
+	 * 消息添加到消息队列中去
+	 * @param key
+	 * @param content
+	 * @return
+	 */
+	public ModelAndView AddMQ(String key,String content)
+	{
+		ModelAndView resultInfo=null;
+		//1：数据进行验证
+		if(key==null||key.length()<=0||content==null||content.length()<=0)
+		{
+			resultInfo=ResultInfoCommon.FailJson("数据格式错误,key或content为空！");
+			return resultInfo;
+		}
+		//如果content进行了URL编码则解码
+		//content=UrlUtil.getURLDecoderString(content);
+		//2：上传信息转换Map格式对象
+		Map<String, List<Map<String, String>>> mapMain=null;
+		try
+		{
+			mapMain=JsonUtility.JSON2Map(key, content);
+		}
+		catch(Exception e)
+		{
+			LogWritter.LogWritterInfo(WebPCApiController.class, LogEnum.Error, 
+					String.format("上传JSON格式异常! key:%s content:%s",key,content));
+			return ResultInfoCommon.FailJson("上传JSON格式异常!");
+		}
+		//3:进行埋点注册格式校验
+		String[] outMsg=new String[1];//函数输出消息 取第一个值
+		if(DataValid.IsValidFormByJsonObj(mapMain, outMsg))
+		{
+			//4：进行系统属性补录
+			ServerCommon comm=new ServerCommon();
+			mapMain=comm.AttributeAddByJsonObj(mapMain);
+			//5：向消息队列中发送消息
+			DataMQBLL bll=new DataMQBLL();
+			//转换成字符串发送
+			String val=JsonUtility.ObjToJSONStr(mapMain);
+			bll.AddMQInfo(key,val);
+			//5：返回客户端
+			resultInfo=ResultInfoCommon.SuccessJson("捕捉信息成功!");
+		}
+		else
+		{
+			//校验出错的信息进行关系型数据保存，用以查看
+			BPDbBaseDAL dal=new BPDbBaseDAL();
+			dal.AddValidInfoToDB(key, outMsg[0]);
+			//写入日志
+			LogWritter.LogWritterInfo(WebPCApiController.class, LogEnum.Error, 
+					String.format("PCAPI请求数据格式错误！msg:%s key:%s content:%s",outMsg[0],key,content));
+			resultInfo=ResultInfoCommon.FailJson(outMsg[0]);
+		}
+		return resultInfo;
+	}
+	
+	
+	//以下为测试代码记录信息
+	/*
+	 *     @RequestMapping(value = "/upload",produces="application/json;charset=UTF-8")  
+	 *     @RequestMapping(value = "/pets/{petId}", method = RequestMethod.GET, produces="application/json")
+	@RequestMapping(value="/user/",method=RequestMethod.GET,produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<String> test(String key, String content) {
+		// TODO Auto-generated method stub
+		return new ResponseEntity<String>("jake",HttpStatus.OK);
+	}
+    @RequestMapping(value = "/user/", method = RequestMethod.POST)  
+    public ResponseEntity<Void> createUser(@RequestBody String user,    UriComponentsBuilder ucBuilder) { 
+    	return new ResponseEntity<Void>(HttpStatus.OK);
+    }
+	*/
+    
+	
+}

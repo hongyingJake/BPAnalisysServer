@@ -1,0 +1,49 @@
+package com.bp.msgfactory;
+
+import com.bp.msginterface.*;
+import com.bp.msgrealization.*;
+import com.bp.common.*;
+
+/**
+* @author zyk
+* @version 创建时间：2017年8月7日 上午10:48:08
+* 消息队列工厂实现  类说明
+*/
+public  class MQFactory {
+	/**
+	 * 消息队列类型
+	 */
+	private static String MQInfoType=null;
+	/**
+	 * 消息队列基类
+	 */
+	private static IBaseMQ baseMQ=null;
+	/**
+	 * 获取消息队列实现
+	 * @return
+	 */
+	public static IBaseMQ GetMQInfo(){
+		if(MQInfoType==null)
+		{
+			ConfigurationManager mg=new ConfigurationManager();
+			MQInfoType=mg.ReadConfiByNodeName("MQInfoType");
+		}
+		if(baseMQ==null)
+		{
+			if(MQInfoType=="1")
+			{
+				//实例化RedisMQ
+			}
+			else if(MQInfoType=="2")
+			{
+				//实例化kafka消息队列
+				baseMQ=new KafkaMQStorage();
+			}
+			else
+			{
+				baseMQ=new KafkaMQStorage();
+			}
+		}
+		return baseMQ;
+	}
+}

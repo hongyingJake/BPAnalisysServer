@@ -1,0 +1,74 @@
+package com.bp;
+
+import java.util.List;
+import java.util.Map;
+
+import com.bp.bll.BPDbBaseDAL;
+import com.bp.bll.BPFlg;
+import com.bp.bll.DataMQBLL;
+import com.bp.common.DataValid;
+import com.bp.common.JsonUtility;
+import com.bp.common.LogEnum;
+import com.bp.common.LogWritter;
+import com.bp.interfaces.IPersistenceService;
+
+/**
+ * @author zyk
+ * @version 创建时间：2017年9月6日 下午2:44:54 持久化消息到埋点服务服务实现类说明
+ */
+public class ImpPersistenceService implements IPersistenceService {
+	/**
+	 * 
+	 * @param key
+	 *            埋点键值标识符
+	 * @param content
+	 *            消息体(JSON字符串)
+	 * @param info
+	 *            长度为1的数组 保存消息结果说明
+	 * @return 布尔值 true保存成功 false保存失败
+	 */
+	public boolean SaveContentToBP(String key, String content,final String[] info) {
+		// 1：数据进行验证
+		if (key == null || key.length() <= 0 || content == null || content.length() <= 0) {
+			info[0] = "数据格式错误,key或content为空！";
+			return false;
+		} else {
+			// 2：上传信息转换Map格式对象
+			Map<String, List<Map<String, String>>> mapMain = null;
+			try {
+				mapMain = JsonUtility.JSON2Map(key, content);
+			} catch (Exception e) {
+				LogWritter.LogWritterInfo(WebPCApiController.class, LogEnum.Error,
+						String.format("上传JSON格式异常! key:%s content:%s", key, content));
+				info[0]  = "消息内容转换JSON格式异常!";
+				return false;
+			}
+			// 3:进行埋点注册格式校验
+			String[] outMsg = new String[1];// 函数输出消息 取第一个值
+			if (DataValid.IsValidFormByJsonObj(mapMain, outMsg)) {
+				// 4：进行系统属性补录
+				ServerCommon comm = new ServerCommon();
+				mapMain = comm.AttributeAddByJsonObj(mapMain);
+				// 转换成字符串发送
+				String val = JsonUtility.ObjToJSONStr(mapMain);
+				// 5：向消息队列中发送消息
+				DataMQBLL bll = new DataMQBLL();
+				bll.AddMQInfo(key, val);
+				// System.out.println(val);
+				// 5：返回客户端
+				info[0]  = "捕捉信息成功!";
+				return true;
+			} else {
+				// 3.2校验出错的信息进行关系型数据保存，用以查看
+				BPDbBaseDAL dal = new BPDbBaseDAL();
+				dal.AddValidInfoToDB(key, outMsg[0]);
+				// 写入日志
+				LogWritter.LogWritterInfo(WebPCApiController.class, LogEnum.Error,
+						String.format("PCAPI请求数据格式错误！msg:%s key:%s content:%s", outMsg[0], key, content));
+				info[0]  = outMsg[0];
+				return false;
+			}
+		}
+	}
+
+}

@@ -1,0 +1,84 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width" />
+<title>Left</title>
+<link href="${pageContext.request.contextPath}/css/LeftPage.css"
+	rel="stylesheet" />
+<script src="${pageContext.request.contextPath}/js/jquery-1.8.3.js"></script>
+<script type="text/javascript">
+	$(function(){
+		$('.parentA').click(function(e){
+			$('ul',$(this).parent()).toggle();
+		});
+		$('ul',$('.parentA').parent()).hide();
+	});
+</script>
+</head>
+<body>
+	<div class="ullicss">
+		<ul>
+			<li><a target="mainFrame" href="javascript:void(0)" class="parentA">埋点管理</a>
+				<ul>
+					<li><a
+						href="${pageContext.request.contextPath}/BPPoint/Index/1"
+						target="mainFrame">埋点查询</a></li>
+					<li><a
+						href="${pageContext.request.contextPath}/BPPoint/RegisterBP"
+						target="mainFrame">埋点注册</a></li>
+					<li><a
+						href="${pageContext.request.contextPath}/BPClick/Index/1"
+						target="mainFrame">快速埋点</a></li>
+					<li><a
+						href="${pageContext.request.contextPath}/BPNoBury/Index/1"
+						target="mainFrame">无埋点</a></li>
+				</ul></li>
+			<li><a target="mainFrame" href="javascript:void(0)"  class="parentA">系统帮助</a>
+				<ul>
+					<li><a
+						href="${pageContext.request.contextPath}/BPHelper/Index#getMTBPBB"
+						target="mainFrame">埋点必备</a></li>
+					<li><a
+						href="${pageContext.request.contextPath}/BPHelper/Index#getMTBPJS"
+						target="mainFrame">引入埋点JS包</a></li>
+					<li><a
+						href="${pageContext.request.contextPath}/BPHelper/Index#getmt"
+						target="mainFrame">JSON埋点</a></li>
+					<li><a
+						href="${pageContext.request.contextPath}/BPHelper/Index#getmtpl"
+						target="mainFrame">批量上传</a></li>
+					<li><a
+						href="${pageContext.request.contextPath}/BPHelper/Index#getAndPost"
+						target="mainFrame">GET和POST</a></li>
+					<li><a
+						href="${pageContext.request.contextPath}/BPHelper/Index#customProp"
+						target="mainFrame">自定义属性</a></li>
+					<li><a
+						href="${pageContext.request.contextPath}/BPHelper/Index#speedBp"
+						target="mainFrame">快速埋点</a></li>
+					<li><a
+						href="${pageContext.request.contextPath}/BPHelper/Index#noBuryBp"
+						target="mainFrame">无埋点</a></li>
+					<li><a
+						href="${pageContext.request.contextPath}/BPHelper/Index#getVisit"
+						target="mainFrame">页面访问时长</a></li>
+					<li><a
+						href="${pageContext.request.contextPath}/BPHelper/Index#getTrack"
+						target="mainFrame">用户行为轨迹</a></li>
+					<li><a
+						href="${pageContext.request.contextPath}/BPHelper/Index#BackBP"
+						target="mainFrame">系统后台埋点</a></li>
+					<li><a
+						href="${pageContext.request.contextPath}/BPHelper/Index#resultState"
+						target="mainFrame">埋点结果状态</a></li>
+					<li><a
+						href="${pageContext.request.contextPath}/BPHelper/Index#getBpValid"
+						target="mainFrame">埋点校验规则</a></li>
+				</ul></li>
+		</ul>
+	</div>
+</body>
+</html>

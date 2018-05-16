@@ -1,0 +1,205 @@
+﻿/// <reference path="PageJsonShare.js" />
+/// <reference path="jquery-1.8.3.js" />
+//注册埋点键值对说明
+//请求服务地址
+var serverUrl = "/servers/RegisterBPServer.ashx?n="+new Date().valueOf();
+$(function () {
+    //为保存按钮注册事件
+    $('#btnKeySave').click(function () {
+        //发送异步请求保存键值对
+        SaveKeyValue();
+        //发送成功则刷新键值对
+
+    });
+    //键值判断是否存在
+    $('#txtKeyFlg').blur(function () {
+        CheckBPIsHave();
+    });
+    //注册埋点时验证埋点标识符是否存在
+    $('#BPFlg').blur(function () {
+        RegisterCheckFlg();
+    });
+    //页面加载后，加载埋点键值信息
+    GetAllKeys();
+    //设置页面默认信息
+    SetDefaultInfo();
+});
+
+
+//注册埋点时验证埋点标识符是否存在
+function RegisterCheckFlg()
+{
+    //获取数据
+    var paramsData = {
+        BPFlg: $('#BPFlg').val(),
+        Operation: "RegisterCheckFlg"
+    };
+    if (paramsData.BPFlg != '') {
+        //发送请求
+        $.ajax({
+            type: "POST",
+            cache: false,
+            url: serverUrl,
+            data: paramsData,
+            dataType: "json",
+            success: function (data) {
+                if (data.Status == "1") {
+                    $('#BPFlg').val('');
+                    alert(data.Msg);
+                }
+            },
+            error: function () { alert('error'); }
+        });
+    }
+}
+//设置页面默认信息
+function SetDefaultInfo()
+{
+    //判断埋点标识符是否可修改
+    //判断是否已存在埋点信息
+    if ($('#BPId').val() != '')
+    {
+        $('#BPFlg').attr('disabled', true);
+    }
+
+}
+//获取埋点所有键值信息
+function GetAllKeys()
+{
+    //获取数据
+    var paramsData = {
+        BPId: $('#BPId').val(),
+        Operation: "GetAllKeys"
+    };
+    if (paramsData.BPId != '') {
+        //发送请求
+        $.ajax({
+            type: "POST",
+            cache: false,
+            url: serverUrl,
+            data: paramsData,
+            dataType: "json",
+            success: function (data) {
+                if (data.Status == "0") {
+                    alert(data.Msg);
+                }
+                else {
+                    //刷新键值对信息
+                    ReflechKeyValues(data.Msg);
+                }
+            },
+            error: function () { alert('error'); }
+        });
+    }
+}
+
+//删除键
+function DeleteKey(keyFlg)
+{
+    if (confirm("确定要删除键值吗？")) {
+        //获取数据
+        var paramsData = {
+            BPId: $('#BPId').val(),
+            KeyFlg: keyFlg,
+            Operation: "DeleteKeyByKeyFlg"
+        };
+        if (paramsData.BPId != '' && paramsData.KeyFlg != '') {
+            //发送请求
+            $.ajax({
+                type: "POST",
+                cache: false,
+                url: serverUrl,
+                data: paramsData,
+                dataType: "json",
+                success: function (data) {
+                    if (data.Status == "1")
+                    {
+                        ReflechKeyValues(data.Msg);
+                    }
+                },
+                error: function () { alert('error'); }
+            });
+        }
+    }
+}
+
+//刷新键值对信息
+function ReflechKeyValues(keyValues)
+{
+    var trs = "";
+    $('#tbBodyKeys').html(trs);
+    for (var key in keyValues) {
+        //alert(key + ":" + data.Msg[key]);
+        //键值新键值信息
+        trs += "<tr><td>" + key + "</td><td>" + keyValues[key] + "</td><td><input type='button' value='删除' onClick='DeleteKey(\""+key+"\");' /></td></tr>";
+    }
+    if (trs != "") {
+        $('#tbBodyKeys').html(trs);
+    }
+    //设置JSON展示样式
+    var arrayKeys = [];
+    arrayKeys.push(keyValues);
+    $('#preJson').html(JSONToHtmlString(arrayKeys));
+    //设置表格行样式
+    $('#tbBodyKeys tr:even').css('backgroundColor', '#FFF200');
+}
+
+//判断埋点中键值对是否存在键
+function CheckBPIsHave()
+{
+    //获取数据
+    var paramsData = {
+        BPId: $('#BPId').val(),
+        KeyFlg: $('#txtKeyFlg').val(),
+        Operation: "CheckBPIsHave"
+    };
+    if (paramsData.BPId != '' && paramsData.KeyFlg != '') {
+        //发送请求
+        $.ajax({
+            type: "POST",
+            cache: false,
+            url: serverUrl,
+            data: paramsData,
+            dataType: "json",
+            success: function (data) {
+                if (data.Status == "0")
+                {
+                    $('#txtKeyFlg').val('');
+                    alert(data.Msg);
+                }
+            },
+            error: function () { alert('error'); }
+        });
+    }
+}
+
+//异步请求保存键值对
+function SaveKeyValue()
+{
+    //获取数据
+    var paramsData = {
+        BPId: $('#BPId').val(),
+        KeyFlg: $('#txtKeyFlg').val(),
+        KeyInfo: $('#txtKeyInfo').val(),
+        Operation:"RegisterBP"
+    };
+    if (paramsData.BPId != '' && paramsData.KeyFlg != '') {
+        //发送请求
+        $.ajax({
+            type: "POST",
+            cache: false,
+            url: serverUrl,
+            data: paramsData,
+            dataType: "json",
+            success: function (data) {
+                //刷新键值对
+                if (data.Status == "1") {
+                    $('#txtKeyFlg').val('');
+                    $('#txtKeyInfo').val('');
+                    ReflechKeyValues(data.Msg);
+                }
+            },
+            error: function () { alert('error'); }
+        });
+    }
+}

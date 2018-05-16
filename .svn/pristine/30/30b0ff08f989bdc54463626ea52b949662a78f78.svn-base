@@ -1,0 +1,445 @@
+//------------------------------------------麦田埋点服务插件JS包------------------------------------------/
+;
+(function(global, jQuery, undefined) {
+	// ------------------------------------------定义全局变量------------------------------------------/
+	var mt_mtBpParams = mt_mtBpParams || {};
+	// 设置默认参数
+	if (mt_mtBpParams) {
+		mt_mtBpParams.apiUrl = "http://localhost:8080/BPAnalisysServer/MtBPAPI";// 请求埋点API地址
+		mt_mtBpParams.async = true;// 异步请求
+		mt_mtBpParams.reqType = "GET";// 请求方式
+		mt_mtBpParams.cache = false;// 是否使用缓存
+		// 设置无埋点配置项
+		mt_mtBpParams.noBuryKey = "";// 无埋点标识符(为空则不进行无埋点)
+		mt_mtBpParams.noBuryEvent = "click";// 无埋点时元素哪些事件进行埋点
+		// 字符串数组，无埋点时哪些元素进行埋点(jQuery选择器[|事件名称])
+		mt_mtBpParams.noBuryElemets = [ 'a', 'input|blur',
+			    'select|change', 'button',
+				'textarea|blur' ];
+		// 注意：
+		//1:默认上传的值有NoBuryValue和NoBuryTitle，NoBuryValue获取元素的value属性值，NoBuryTitle获取元素的text属性值。
+		//a和img等控件没有value属性，分别获取href和src属性作为NoBuryValue值。
+		//NoBuryTitle默认取text属性值，无text值则获取Title值，否则获取value属性值。
+		//2:noBuryElemets数组中当多个jQuery选择器包含同一个元素，如果选择器的事件不一致则这个元素就会多次埋点(多次绑定事件),
+		//如果选择器的事件一致则只会进行一次埋点;
+		//3:如果当前元素为单选按钮或者多选按钮、只有在选中状态下才会埋点;
+		//4:如果获取的NoBuryValue值为空则不进行埋点；
+		mt_mtBpParams.oPageVisitDuration = false;// 是否开启页面访问时长埋点
+	}
+	// 解析_configMT配置，设置默认参数
+	if (_configMT) {
+		for ( var i in _configMT) {
+			var val = _configMT[i][1];
+			switch (_configMT[i][0]) {
+			case '_setAsync':
+				mt_mtBpParams.async = val;
+				break;
+			case '_setApiUrl':
+				mt_mtBpParams.apiUrl = val;
+				break;
+			case '_setReqType':
+				mt_mtBpParams.reqType = val;
+				break;
+			case '_setCache':
+				mt_mtBpParams.cache = val;
+				break;
+			// 无埋点配置设置
+			case '_noBuryKey':
+				mt_mtBpParams.noBuryKey = val;
+				break;
+			case '_noBuryEvent':
+				mt_mtBpParams.noBuryEvent = val;
+				break;
+			case '_noBuryElemets':
+				mt_mtBpParams.noBuryElemets = val;
+				break;
+			// 是否开启页面访问时长埋点
+			case '_oPageVisitDuration':
+				mt_mtBpParams.oPageVisitDuration = val;
+				break;
+			default:
+				break;
+			}
+		}
+	}
+
+	// ------------------------------------------定义埋点服务插件------------------------------------------/
+	function mtbp() {
+		// ------------------------------------------定义私有埋点属性------------------------------------------/
+		// 客户端唯一标识键名称
+		var mtAccountIdName = "mtbpAccountID";
+		// --------------------定义公共属性------------------------------------------/
+		// --------------------定义私有方法------------------------------------------/
+		// 发送Ajax请求
+		function AjaxReq(type, key, content, successCal, failCal) {
+			// 为JSON对象添加扩展属性
+			var id = GetAccountID();
+			if (jQuery.isArray(content)) {
+				jQuery.each(content, function(i, n) {
+					n.mtbpAccountID = id;
+				});
+			} else {
+				content.mtbpAccountID = id;
+			}
+			jQuery.ajax({
+				type : type,
+				async : mt_mtBpParams.async,
+				cache : mt_mtBpParams.cache,
+				url : mt_mtBpParams.apiUrl,
+				contentType : 'application/x-www-form-urlencoded',
+				// application/x-www-form-urlencoded
+				// application/json;charset=UTF-8
+				// dataType : "jsonp",// 请求类型格式json/jsonp
+				data : {
+					key : key,
+					content : JSON.stringify(content)
+				},
+				success : function(data) {
+					if (successCal) {
+						successCal(data);
+					}
+				},
+				error : function(data) {
+					if (failCal) {
+						failCal(data);
+					}
+				}
+			});
+		}
+		// 获取客户端用户唯一标识
+		function GetAccountID() {
+			var tool = new mtTools();
+			var id = tool.gCookie(mtAccountIdName)
+			if (id === null || id === '') {
+				id = tool.CreateUUID();
+				tool.aCookie(mtAccountIdName, id);
+			}
+			return id;
+		}
+
+		// ------------------------------------------定义公共方法start------------------------------------------/
+		// 根据埋点键值对埋点
+		// 注册埋点时的埋点标识符 content 注册埋点时的键值对JSON对象 successCal 调用成功时回调函数
+		// failCal 调用失败时的回调函数
+		this.mt = function(key, content, successCal, failCal) {
+			AjaxReq(mt_mtBpParams.reqType, key, content, successCal, failCal);
+		};
+		// 发送GET请求埋点
+		// 注册埋点时的埋点标识符 content 注册埋点时的键值对JSON对象 successCal 调用成功时回调函数
+		// failCal 调用失败时的回调函数
+		this.mtGET = function(key, content, successCal, failCal) {
+			AjaxReq("GET", key, content, successCal, failCal);
+		};
+		// 发送POST请求埋点
+		// 注册埋点时的埋点标识符 content 注册埋点时的键值对JSON对象 successCal 调用成功时回调函数
+		// failCal 调用失败时的回调函数
+		this.mtPOST = function(key, content, successCal, failCal) {
+			AjaxReq("POST", key, content, successCal, failCal);
+		};
+		// 快速埋点
+		this.mtClick = function() {
+			if (arguments.length > 0) {
+				var clcKey = "defaultFunClickCount";
+				var clcContent = {
+					'extendParams01' : arguments[0] ? arguments[0] : '',
+					'extendParams02' : arguments[1] ? arguments[1] : '',
+					'extendParams03' : arguments[2] ? arguments[2] : ''
+				};
+				AjaxReq(mt_mtBpParams.reqType, clcKey, clcContent, undefined,
+						undefined);
+			}
+		};
+		// 为mtbp对象注入自定义属性埋点。通过获取自定义属性发送埋点信息 方法必须在window.onload中调用，否则JS未加载，访问不到方法
+		// JSON对象，属性有： reqType：API请求方式GET或POST，默认GET请求
+		// eventType：在元素的哪个事件类型上添加埋点，默认click事件 key：注册埋点时的埋点标识符，必须提供
+		// selector：jQuery选择器，必须提供
+		// customAttrs：自定义属性字符串数组，告诉mtbp需要获取元素的哪些属性进行埋点，上传的埋点键值对(属性名称:属性值),必须提供
+		// defAttrVal：默认键值对参数，会作为埋点键值对集合上传，可不提供
+		// successCal：请求成功时的回调函数，可不提供 failCal：请求失败时的回调函数，可不提供
+		this.mtCustomAttr = function(CustomObj) {
+			// 进行数据校验,必须值为空则返回
+			if (CustomObj.key == undefined || CustomObj.selector == undefined
+					|| CustomObj.customAttrs == undefined) {
+				// console.log('属性key,selector,customAttrs必须提供');
+				return;
+			}
+			// 设置默认属性
+			CustomObj = CustomObj || {};
+			if (typeof (CustomObj.reqType) == 'undefined') {
+				CustomObj.reqType = mt_mtBpParams.reqType;
+			}
+			if (typeof (CustomObj.eventType) == 'undefined') {
+				CustomObj.eventType = "click";
+			}
+			jQuery(function() {
+				jQuery(CustomObj.selector)
+						.bind(
+								CustomObj.eventType,
+								function(e) {
+									var $this = jQuery(this);
+									var content = {};
+									// 获取自定义属性
+									for ( var attr in CustomObj.customAttrs) {
+										content[CustomObj.customAttrs[attr]] = $this
+												.attr(CustomObj.customAttrs[attr]);
+									}
+									// 获取默认值
+									if (typeof (CustomObj.defAttrVal) != 'undefined') {
+										for ( var attr in CustomObj.defAttrVal) {
+											if (typeof (CustomObj.defAttrVal[attr]) != 'undefined') {
+												content[attr] = CustomObj.defAttrVal[attr];
+											}
+										}
+									}
+									// 发送ajax请求
+									AjaxReq(CustomObj.reqType, CustomObj.key,
+											content, CustomObj.successCal,
+											CustomObj.failCal);
+								});
+			});
+		}
+		// ------------------------------------------定义公共方法end------------------------------------------/
+	}
+	// ------------------------------------------相关工具类定义start------------------------------------------/
+	// 定义埋点的工具类
+	function mtTools() {
+		// 创建UUID
+		this.CreateUUID = function() {
+			var d = new Date().getTime();
+			var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,
+					function(c) {
+						var r = (d + Math.random() * 16) % 16 | 0;
+						d = Math.floor(d / 16);
+						return (c == 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+					});
+			return uuid;
+		};
+		// 判断浏览器是否支持本地存储
+		this.zLocal = function() {
+			if (window.localStorage) {
+				return true;
+			}
+			return false;
+		};
+		// 添加cookie
+		this.aCookie = function(name, value) {
+			if (this.zLocal()) {
+				window.localStorage.setItem(name, value);
+			} else {
+				document.cookie = name + "=" + escape(value) + ";path=/";
+			}
+		};
+		// 取cookie
+		this.gCookie = function(name) {
+			if (this.zLocal()) {
+				return window.localStorage.getItem(name);
+			} else {
+				if (document.cookie.length > 0) {
+					var cookieStr = document.cookie;
+					var nameIndex = cookieStr.indexOf(name);
+					if (nameIndex === -1) {
+						return "";
+					}
+					var lastIndex = cookieStr.indexOf(";", nameidnex);
+					if (lastIndex = -1) {
+						lastIndex = cookieStr.length;
+					}
+					return unescape(cookieStr.substring(nameidnex + name.length
+							+ 1, lastIndex));
+				}
+			}
+		};
+		// 删除cookie
+		this.rCookie = function(name) {
+			if (this.zLocal()) {
+				window.localStorage.removeItem(name);
+			} else {
+				var expire = new Date();
+				expire.setTime(expire.getTime() - 1000);
+				document.cookie = name + "=;expires=" + expire.toUTCString();
+			}
+		};
+		// 获取浏览器的类型
+		this.gBrowserType = function() {
+			var brow = jQuery.browser;
+			if (brow) {
+				var bInfo = "";
+				if (brow.msie) {
+					bInfo = "IE_" + brow.version;
+				} else if (brow.mozilla) {
+					bInfo = "Firefox_" + brow.version;
+				} else if (brow.safari) {
+					bInfo = "Safari_" + brow.version;
+				} else if (brow.opera) {
+					bInfo = "Opera_" + brow.version;
+				} else if (brow.webkit) {
+					bInfo = "webkit_" + brow.version;
+				} else {
+					bInfo = "未知_" + brow.version;
+				}
+				return bInfo;
+			} else {
+				return '';
+			}
+		};
+	}
+	// ------------------------------------------相关工具方法定义end------------------------------------------/
+
+	// 最后将插件对象暴露给全局对象
+	if (!global.mtbp) {
+		global.mtbp = new mtbp();
+	}
+	// -----------------------------麦田埋点服务无埋点注册start------------------------------------------/
+	// 定义无埋点事件
+	function mtBPNobury(e) {
+		var tagName = jQuery(this)[0].tagName.toUpperCase();
+		var type=jQuery(this)[0].type?jQuery(this)[0].type.toLowerCase():'';
+		var isBury=true;//是否埋点
+		// 定义发送埋点类型
+		var key = 'NoBuryPointsKey';
+		var content = {
+			'NoBuryKey' : mt_mtBpParams.noBuryKey,
+			'NoBuryValue' : jQuery(this).val(),
+			'NoBuryTitle' : jQuery(this).text() ? jQuery(this).text() :
+				jQuery(this).attr('title')?jQuery(this).attr('title'): jQuery(this).val(),
+			'NoBuryExtend' : ''
+		};
+		// 根据不同的元素获取值
+		var val = '';
+		switch (tagName) {
+		case 'A':
+			val = jQuery(this).attr('href') ? jQuery(this).attr('href')
+					: jQuery(this).val();
+			break;
+		case 'IMG':
+			val = jQuery(this).attr('src') ? jQuery(this).attr('src') : jQuery(
+					this).attr('alt');
+			break;
+		case 'INPUT':
+			val = jQuery(this).val();
+			//如果是checkbox或radio则判断是否选中，未选中则不进行埋点
+			if(type=='checkbox'||type=='radio'){
+				if(!jQuery(this)[0].checked){
+					isBury=false;
+				}
+			}
+			break;
+		case 'SELECT':
+			val = jQuery(this).val();
+			// Title设置成选中的OPTION的text
+			content.NoBuryTitle = jQuery(this)[0].options[jQuery(this)[0].selectedIndex].text;
+			break;
+		default:
+			val = jQuery(this).val();
+			break;
+		}
+		content['NoBuryValue'] = val;
+		//1：判断是否需要埋点
+		//获取的值不为空则进行埋点
+		if (content.NoBuryValue.length<=0) {
+			isBury=false;
+		}
+		//2： 通过埋点对象的mt方法发送Ajax请求
+		if ("mt" in global.mtbp) {
+			if (isBury) {
+				global.mtbp.mt(key, content, undefined, undefined);
+			}
+		}
+	}
+	// 页面元素注册无埋点事件
+	global.onload = function() {
+		// 判断是否注册无埋点标识符
+		if (mt_mtBpParams.noBuryKey && mt_mtBpParams.noBuryKey != '') {
+			for (var i = 0; i < mt_mtBpParams.noBuryElemets.length; i++) {
+				var vals = mt_mtBpParams.noBuryElemets[i].split('|');// jQuery选择器|事件名称
+				var selectKit = vals[0];// jQuery选择器
+				var eventName = vals[1] ? vals[1] : mt_mtBpParams.noBuryEvent;// 指定事件则取否则使用默认事件
+				if (selectKit) {
+					//配置中noBuryElemets可能指定的选择器同时包含同一个元素，保证每一个元素都只绑定一次埋点事件
+					//在绑定事件之前先移除再绑定
+					jQuery(selectKit).unbind(eventName, mtBPNobury);
+					jQuery(selectKit).bind(eventName, mtBPNobury);
+				}
+			}
+		}
+	};
+	// -----------------------麦田埋点服务无埋点注册end------------------------------------------/
+	// -----------------------绑定页面的访问时长埋点start------------------------------------------/
+	var mtVisitPage = mtVisitPage || {};// 定义页面访问时长埋点content对象
+	var mtBpst = new Date().getTime(); // 在页面加载运行js时记录当前时间，1505706520826
+	// document对象数据
+	if (document && global.document) {
+		mtVisitPage.dm = global.document.domain || '';
+		mtVisitPage.pu = global.document.URL || '';
+		mtVisitPage.pt = global.document.title || '';
+		mtVisitPage.pr = global.document.referrer || '';
+	}
+	// screen对象数据
+	if (global && global.screen) {
+		mtVisitPage.sh = global.screen.height || 0;
+		mtVisitPage.sw = global.screen.width || 0;
+		mtVisitPage.cd = global.screen.colorDepth || 0;
+	}
+	// 在页面要unload触发'beforeunload'事件时进行时间差计算得到访问时长
+	if (mt_mtBpParams.oPageVisitDuration) {
+		jQuery(global).on(
+				'beforeunload',
+				function() {
+					// 获取浏览器的类型
+					var tools = new mtTools();
+					mtVisitPage.bt = tools.gBrowserType();
+					var mtBpet = new Date().getTime();
+					mtVisitPage.st = Math.floor((mtBpet - mtBpst) / 1000);// 页面的访问时长(单位:秒)
+					// 发送Ajax请求
+					if ("mt" in global.mtbp) {
+						global.mtbp.mt("PageVisitDurationKey", mtVisitPage,
+								undefined, undefined);
+					}
+				});
+	}
+	// -----------------------绑定页面的访问时长埋点end------------------------------------------/
+	// -----------------------页面方法扩展start------------------------------------------/
+	//对于麦田在线使用埋点服务系统的解决方案：
+	//1:直接去掉谷歌的ga统计，1.1:页面去掉谷歌JS的引用  1.2:添加方法名称为ga的方法统计  
+	//2:使用埋点系统，并同时使用谷歌统计，2.1：添加自定义函数gaAndMt，函数参数最多指定5个   2.2:页面上替换ga方法为gaAndMt方法
+	//3:以上方法前提条件：
+	//3.1:确定ga方法在页面调用的格式都为：ga('send', 'event', 'ershoufangliebiao', 'fangyuanbiaoti', '1_1');
+	//3.2:这些参数需要在埋点系统中注册对应的快速埋点
+	//解决方案1：
+	if(!global.ga){
+		global.ga= function(){
+			//去掉第一和第二个参数
+			if(arguments.length>3){
+				var parms1= arguments[2] ? arguments[2] : '';
+				var parms2= arguments[3] ? arguments[3] : '';
+				var parms3= arguments[4] ? arguments[4] : '';
+				if ("mtClick" in global.mtbp) {
+					global.mtbp.mtClick(parms1,parms2,parms3);
+				}
+			}
+		};
+	}
+	//解决方案2：
+	if(!global.gaAndMt){
+		global.gaAndMt=function(){
+			//去掉第一和第二个参数
+			if(arguments.length>3){
+				var send=arguments[0] ? arguments[0] : '';
+				var event=arguments[1] ? arguments[1] : '';
+				var parms1= arguments[2] ? arguments[2] : '';
+				var parms2= arguments[3] ? arguments[3] : '';
+				var parms3= arguments[4] ? arguments[4] : '';
+				if ("mtClick" in global.mtbp) {
+					//调用埋点服务快速埋点
+					global.mtbp.mtClick(parms1,parms2,parms3);
+				}
+				if(global.ga){
+					//调用ga的方法
+					ga(send,event,parms1,parms2,parms3);
+				}
+			}
+		};
+	}
+	
+	// -----------------------页面方法扩展end------------------------------------------/
+})(window, $);

@@ -1,0 +1,80 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width" />
+ <title>埋点查询列表</title>
+    <script src="${pageContext.request.contextPath}/js/jquery-1.8.3.js"></script>
+    <script src="${pageContext.request.contextPath}/js/BPPointList.js"></script>
+    <script src="${pageContext.request.contextPath}/js/BPCommon.js"></script>
+    <style type="text/css">
+        .inputSearch {
+        width:260px;
+        height:32px;
+        }
+        .ListTable {
+            border-collapse:collapse;
+            border:1px solid;
+            width:100%;
+        }
+        .ListTable tr{
+        	line-height: 23px;
+        }
+    </style>
+</head>
+<body>
+    <div> 
+    	<form action="${pageContext.request.contextPath}/BPPoint/Index/1" method="get">
+        <table border="1" width="100%" style="border-collapse:collapse;">
+            <tr style="height:44px">
+                <td width="100px;" style="text-align:right;">埋点名称：</td>
+                <td>
+                    <input type="text" id="txtBPName" name="BPName" value="${BPName }" class="inputSearch" />
+                    <input type="submit" id="btnSearch" value="查询" />
+                    <input type="hidden" id="currentIndex" value="${currentIndex }"/>
+                    <input type="hidden" id="ContextPath" value="${ContextPath }" />
+                </td>
+            </tr>
+        </table>
+        <div>
+            <table class="ListTable" border="1">
+                <thead>
+                    <tr style="background-color: #35B435;height:38px;font-weight:bold;font-size:18px;color:white;">
+                        <td width="50px">序号</td>
+                        <td width="250px">埋点标识符</td>
+                        <td>埋点名称</td>
+                        <td width="100px">注册人</td>
+                        <td width="150px">注册日期</td>
+                        <td width="150px">最近更新</td>
+                    </tr>
+                </thead>
+                <tbody id="BPLst">
+					<c:forEach var="list" items="${BPPointsLst}" varStatus="vs">
+						<tr BPId='${list.getBPId()}'>
+							<td style='text-align:center;'>
+								</td>
+							<td title='${list.getBPFlg()}'>
+							${list.getBPFlg()}</td>
+							<td title='${list.getBPName()}'>
+							${list.getBPName()}</td>
+							<td title='${list.getRegUserId()}'>
+							${list.getRegUserId()}</td>
+							<td title='${list.getRegisterDate()}'>
+							${list.getRegisterDate()}</td>
+							<td title='${list.getLastUpDate()}'>
+							${list.getLastUpDate()}</td>
+						</tr>
+					</c:forEach>
+				</tbody>
+            </table>
+        </div>
+        <div id="pageNav">
+        ${pageNav}
+        </div>
+        </form>
+    </div>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<customerProps>
+	<!--是否开启数据校验 1：开启 2：关闭-->
+	<OpenValid>1</OpenValid>
+	<!-- 验证模式 1:只验证埋点键值数量  2：验证埋点键值名称一一对应 -->
+	<ValidType>2</ValidType>
+	<!-- 消息队列实现类jar包名称(lib目录) -->
+	<!-- <MQRealizationJarFile>msgrealization.jar</MQRealizationJarFile> -->
+	<!-- 消息队列实现类 -->
+	<!-- <MQRealizationClassName>com.bp.msgrealization.KafkaMQStorage</MQRealizationClassName> -->
+	<!--MQ服务停用后临时存储到本地文件夹中，替代一个简单文本队列  注意：系统要有创建读取权限-->
+	<ShareDir>C:\MTBPFileInfo</ShareDir>
+	<!--Web 服务监视线程空闲时休眠时间（单位:秒） -->
+	<ThreadFreeTime>3</ThreadFreeTime>
+	<!-- mySql连接字符串 -->
+	<DBConnStr>jdbc:mysql://localhost:3306/MTBPDataBase?user=root&amp;password=123456&amp;useUnicode=true&amp;characterEncoding=UTF8</DBConnStr>
+	<!-- Dubbo 日志级别OFF、FATAL、ERROR、WARN、INFO、DEBUG、ALL，Dubbo默认写入日志到log4j，这个配置会影响到log4j写入日志的级别 -->
+	<DubboLogLevel>WARN</DubboLogLevel>
+	<!-- 指定系统消息队列缓存长度(未发送的消息先写入缓存) -->
+	<CacheLength>6000</CacheLength>
+	<!-- 客户端提交的埋点键值集合不需要校验(","分隔) -->
+	<NoValidClientKeys>mtbpAccountID,</NoValidClientKeys>
+</customerProps>

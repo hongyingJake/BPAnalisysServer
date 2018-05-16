@@ -1,0 +1,84 @@
+package com.bp.common;
+
+import java.io.File;
+import java.io.InputStream;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+
+/**
+ * 读取配置文件公共类
+ * 
+ * @author aaa
+ *
+ */
+public class ConfigurationManager {
+	private String ConfigFileName;
+	/**
+	 * 构造器
+	 * @param FileName 配置文档名称
+	 */
+	public ConfigurationManager(String FileName)
+	{
+		this.ConfigFileName=FileName;
+	}
+	/**
+	 * 默认构造器  配置文件默认名称config.xml
+	 */
+	public ConfigurationManager()
+	{
+		this.ConfigFileName="config.xml";
+	}
+	/**
+	 * 读取配置文件信息
+	 * 
+	 * @param nodeName
+	 *            xml文档节点的名称
+	 * @return
+	 */
+	public  String ReadConfiByNodeName(String nodeName) {
+		String nodeValue = "";
+		Element element = null;
+		String filePath=this.getClass().getClassLoader().getResource(this.ConfigFileName).getFile();
+		File f =new File(filePath);
+		//以下可直接获取文件流信息
+		//InputStream stream= this.getClass().getClassLoader().getResourceAsStream("config.xml");
+		if (!f.exists()) {
+			LogWritter.LogWritterInfo(ConfigurationManager.class, LogEnum.Error, "系统配置文件config.xml未找到！系统路径："+filePath);
+			return "";
+		}
+		DocumentBuilder db = null;
+		DocumentBuilderFactory dbf = null;
+		try {
+			// 返回documentBuilderFactory对象
+			dbf = DocumentBuilderFactory.newInstance();
+			// 返回db对象用documentBuilderFatory对象获得返回documentBuildr对象
+			db = dbf.newDocumentBuilder();
+
+			// 得到一个DOM并返回给document对象
+			Document dt = db.parse(f);
+			// 得到一个elment根元素
+			element = dt.getDocumentElement();
+			// 获得根元素下的子节点
+			NodeList childNodes = element.getChildNodes();
+			// 遍历这些子节点
+			for (int i = 0; i < childNodes.getLength(); i++) {
+				// 获得每个对应位置i的结点
+				Node node = childNodes.item(i);
+				if (nodeName.equals(node.getNodeName())) {
+					nodeValue = node.getTextContent();
+					break;
+				}
+			}
+			return nodeValue;
+		} catch (Exception e) {
+			LogWritter.LogWritterInfo(ConfigurationManager.class, LogEnum.Error, "从配置文件config.xml读取配置信息异常！");
+			return "";
+		}
+	}
+}

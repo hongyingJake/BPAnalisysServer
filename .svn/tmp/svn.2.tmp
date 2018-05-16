@@ -1,0 +1,161 @@
+package com.bp.bll;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import com.bp.common.LogEnum;
+import com.bp.common.LogWritter;
+import com.bp.models.BPSubPointsModel;
+
+/**
+* @author zyk
+* @version 创建时间：2017年8月7日 上午11:27:11
+* 埋点服务系统缓存资源存储 类说明
+*/
+public class BPFlg {
+	
+	/**
+	 * 测试数据查看瓶颈
+	 */
+	private static List<Integer> validTime=new ArrayList<Integer>();//验证时间
+	private static List<Integer> saveTime=new ArrayList<Integer>();//保存到消息队列时间
+	/**
+	 * 压力瓶颈数据保存
+	 * @param validt 验证数据时间差
+	 * @param savet 保存数据时间差
+	 */
+	public static void saveTestTime(int validt,int savet)
+	{
+		validTime.add( validt);
+		saveTime.add(savet);
+		if(validTime.size()>1000){
+			validTime.remove(Collections.max(validTime));//去掉一个最大和最小
+			validTime.remove(Collections.min(validTime));
+			int vMax= Collections.max(validTime);
+			int vMin=Collections.min(validTime);
+			int vAvg=getAvg(validTime);
+			String vstr=String.format("压力测试数据校验：%s,最大时间：%d,最小时间:%d,平均时间:%d", validTime,vMax,vMin,vAvg);
+			LogWritter.LogWritterInfo(BPFlg.class, LogEnum.Error, vstr);
+			saveTime.remove(Collections.max(saveTime));//去掉一个最大和最小
+			saveTime.remove(Collections.min(saveTime));
+			int sMax= Collections.max(saveTime);
+			int sMin=Collections.min(saveTime);
+			int sAvg=getAvg(saveTime);
+			String sstr=String.format("压力测试数据保存：%s,最大时间：%d,最小时间:%d,平均时间:%d", saveTime,sMax,sMin,sAvg);
+			LogWritter.LogWritterInfo(BPFlg.class, LogEnum.Error, sstr);
+			validTime.clear();
+			saveTime.clear();
+		}
+	}
+	private static int getAvg(List<Integer> lst){
+		int sum=0;
+		for(int i:lst){
+			sum+=i;
+		}
+		return sum/lst.size();
+	}
+	
+	/**
+	 * 消息队列服务是否可用
+	 */
+	private static boolean MSMQServerCanUse=true;
+	/**
+	 * 并发访问对象锁对象
+	 */
+	private static Object objClock=new Object();
+	
+	/**
+	 * 埋点键值集合缓存对象
+	 */
+	private static Map<String,Map<String,String>> bpKValues=new HashMap<String,Map<String,String>>();
+	
+	/**
+	 * 获取埋点键值集合
+	 * @param BPFlg
+	 * @return
+	 */
+	public static Map<String,String> GetBpKValues(String BPFlg)
+	{
+		Map<String,String> kv=null;
+		//不包含当前埋点键集合则添加
+		if(!bpKValues.containsKey(BPFlg))
+		{
+			kv=AddBPKValuesToCache(BPFlg);
+		}
+		else
+		{
+			//包含则直接获取
+			kv=bpKValues.get(BPFlg);
+		}
+		return kv;
+	}
+	/**
+	 * 缓存中移除埋点键值集合
+	 * @param BPFlg
+	 * @param BPKName
+	 */
+	public static void RemoveBpKValue(String BPFlg,String BPKName)
+	{
+		Map<String,String> kv=GetBpKValues(BPFlg);
+		if(kv.containsKey(BPKName))
+		{
+			kv.remove(BPKName);
+		}
+	}
+	/**
+	 * 添加埋点键集合键值信息到缓存
+	 * @param BPFlg
+	 * @param BPKName
+	 * @param BPKValue
+	 */
+	public static void AddBpKValue(String BPFlg,String BPKName,String BPKValue)
+	{
+		Map<String,String> kv=GetBpKValues(BPFlg);
+		if(!kv.containsKey(BPKName))
+		{
+			kv.put(BPKName, BPKValue);
+		}
+	}
+	/**
+	 * 添加埋点键集合添加到缓存中
+	 * @param BPFlg
+	 */
+	private static Map<String,String> AddBPKValuesToCache(String BPFlg)
+	{
+		BPDbBaseDAL dal=new BPDbBaseDAL();
+		//1:从数据库获取键集合信息
+		List<BPSubPointsModel> lst=dal.GetBPSubPointsKValuesByBPFlg(BPFlg);
+		if(lst==null)
+		{
+			lst=new ArrayList<BPSubPointsModel>();
+		}
+		//2:键集合添加到缓存中
+		Map<String,String> kv=new HashMap<String,String>();
+		for(BPSubPointsModel m:lst)
+		{
+			kv.put(m.BPKName, m.BPKValue);
+		}
+		bpKValues.put(BPFlg, kv);
+		return kv;
+	}
+	
+	/**
+	 * 获取消息队列服务是否可用
+	 * @return
+	 */
+	public static boolean getMSMQServerCanUse()
+	{
+		return MSMQServerCanUse;
+	}
+	/**
+	 * 设置消息队列是否可使用
+	 * @param canUse
+	 */
+	public synchronized static void setMSMQServerCanUse(boolean canUse)
+	{
+		MSMQServerCanUse=canUse;
+	}
+}

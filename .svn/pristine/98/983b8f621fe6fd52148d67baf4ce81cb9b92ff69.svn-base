@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>压力测试页面</title>
+<script src="../js/jquery-1.8.3.js"></script>
+<script src="../mtscript/mtbpmin.js"></script>
+<script type="text/javascript">
+	var content = {
+		"CurrentThreadId" : new Date().getTime(),
+		"EventType" : "click",
+		"eventNumber" : "6",
+		"eventAreaFlg" : "地铁区-二手房",
+		"elementID" : new Date(),
+		"eventTitle" : "北京",
+		"IP" : "111.207.209.2",
+		"ClientFlg" : "1",
+		"BrowserType" : "Firefox_54.0"
+	};
+	//Ajax成功时调用方法
+	function success(data){
+		var dd=new Date();
+		if(data.BPInfo.Status=='OK'){
+			//跳转到成功时页面
+			window.location="success.html?Msg="+escape(data.BPInfo.Msg)+"&tt="+dd.getTime();
+		}
+		else{
+			window.location="fail.html?Msg="+escape(data.BPInfo.Msg)+"&tt="+dd.getTime();
+		}
+	}
+	//Ajax失败时调用方法
+	function fail(data){
+		//Ajax调用失败，跳转到失败页面
+		window.location="fail.html?Msg="+escape("Ajax请求失败！")+"&tt="+new Date().getTime();
+	}
+</script> 
+</head>
+<body>
+	<input type="button" onclick="mtbp.mtGET('keyClickNumber', content,success,fail)" value="顺义--地铁站" /><br />
+	<input type="button" value="生活圈POST"  onclick="mtbp.mtPOST('keyClickNumber', content,success,fail)" />
+</body>
+</html>

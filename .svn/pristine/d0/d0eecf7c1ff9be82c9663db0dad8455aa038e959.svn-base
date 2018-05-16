@@ -1,0 +1,29 @@
+package com.bp.msgrealization;
+
+import java.util.List;
+
+import com.bp.msginterface.IBaseMQ;
+
+/**
+* @author zyk
+* @version 创建时间：2017年8月7日 上午10:49:55
+* kafka消息队列的实现  类说明
+*/
+public class KafkaMQStorage implements IBaseMQ {
+
+	public boolean SaveMQInfo(Object val) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	public List<String> GetMQInfo() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public boolean CanUseMQ() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+}

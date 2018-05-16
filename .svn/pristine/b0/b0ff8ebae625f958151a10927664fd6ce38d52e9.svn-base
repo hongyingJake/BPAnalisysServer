@@ -1,0 +1,174 @@
+var ServerUrl = "";
+/**
+ * 快速埋点注册页面JS
+ */
+$(function() {
+	// 判断注册或查询
+	checkSearchOrRegist();
+	BPlstAppearence();
+});
+// 判断注册或查询
+function checkSearchOrRegist() {
+	var filSearch = $('#filSearch');
+	var filRegist = $('#filRegist');
+	filRegist.hide();
+	// 为注册按钮设置点击事件
+	$('#btnRegist').click(function() {
+		filSearch.hide();
+		filRegist.show();
+	});
+	// 为保存按钮注册事件
+	$('#btnSave').click(function() {
+		RegistBPSpeed();
+	});
+	// 设置请求地址
+	ServerUrl = $('#contentxPath').val();
+	// 为3个参数注册事件，校验值格式
+	$('#params1').blur(function() {
+		checkBPSpeedParams("1", this);
+	});
+	$('#params2').blur(function() {
+		checkBPSpeedParams("2", this);
+	});
+	$('#params3').blur(function() {
+		checkBPSpeedParams("3", this);
+	});
+}
+// 埋点标识符格式验证
+function checkBPSpeedParams(parsType, paramObj) {
+	var param = $(paramObj).val().trim();
+	var regex = /^[a-zA-Z\d\-_]+$/g;
+	//判断前面的参数是否已经输入(必须依次输入三个参数)
+	if(parsType=="2"){
+		var param1=$('#params1').val().trim();
+		if(param1==''){
+			alert('参数需依次输入，请先输入参数1的值！');
+			$(paramObj).focus().val('');
+			return false;
+		}
+	}
+	else if(parsType=='3'){
+		var param1=$('#params1').val().trim();
+		var param2=$('#params2').val().trim();
+		if(param1==''){
+			alert('参数需依次输入，请先输入参数1的值！');
+			$(paramObj).focus().val('');
+			return false;
+		}else if(param2==''){
+			alert('参数需依次输入，请先输入参数2的值！');
+			$(paramObj).focus().val('');
+			return false;
+		}
+	}
+	if (param == '') {
+		return false;
+	}
+	if (!regex.test(param)) {
+		alert('参数格式只能有字母、数字或下划线组成！');
+		$(paramObj).focus().val('');
+		return false;
+	} else {
+		// 发送消息判断参数是否注册
+		$.ajax({
+			type : "POST",
+			cache : false,
+			url : ServerUrl + "/BPClick/CheckParms",
+			contentType : 'application/x-www-form-urlencoded',
+			data : {
+				parsType : parsType,
+				parsValue : param
+			},
+			dataType : "json",
+			success : function(data) {
+				if (data == "1") {
+					alert('参数已经注册，请重新输入参数！');
+					$(paramObj).focus().val('');
+					return false;
+				} else {
+					return true;
+				}
+			},
+			error : function(dd) {
+				alert('校验参数是否注册异常，请联系管理员！');
+				return false;
+			}
+		});
+	}
+}
+// 快速埋点注册
+function RegistBPSpeed() {
+	var txtSaveTitle = $('#txtSaveTitle').val();
+	var params1 = $('#params1').val().trim();
+	var params2 = $('#params2').val().trim();
+	var params3 = $('#params3').val().trim();
+	var title1 = $('#title1').val();
+	var title2 = $('#title2').val();
+	var title3 = $('#title3').val();
+	if (txtSaveTitle == '' || params1 == '') {
+		alert('标题及参数1不可为空！');
+		return;
+	}
+	// 发送请求
+	$.ajax({
+		type : "POST",
+		cache : false,
+		url : ServerUrl + "/BPClick/Regist",
+		contentType : 'application/x-www-form-urlencoded',
+		data : {
+			txtSaveTitle : txtSaveTitle,
+			params1 : params1,
+			params2 : params2,
+			params3 : params3,
+			title1 : title1,
+			title2 : title2,
+			title3 : title3
+		},
+		dataType : "json",
+		success : function(data) {
+			alert(data.BPInfo.Msg);
+			window.location.href = ServerUrl + "/BPClick/Index/1";
+
+		},
+		error : function(dd) {
+			alert('error');
+		}
+	});
+}
+// 为列表设置样式信息
+function BPlstAppearence() {
+	// 设置列表序号信息
+	var currentIndex = Number($('#currentIndex').val());
+	$('#BPSpeedLst tr').each(function(i, tr) {
+		$('td:first', tr).text(currentIndex + i + 1);
+	});
+	// 设置表格行样式
+	$('#BPSpeedLst tr:even').css('backgroundColor', '#ECEFF2');
+	$('#BPSpeedLst tr').click(function() {
+		$('#BPSpeedLst tr').css('backgroundColor', '#fff');
+		$('#BPSpeedLst tr:even').css('backgroundColor', '#ECEFF2');
+		$(this).css("backgroundColor", "#FFF200");
+	});
+}
+// 删除快速埋点
+function DeleteBPSpeed(SpeedId) {
+	if (confirm("确定要删除快速埋点吗？")) {
+		// 发送请求
+		$.ajax({
+			type : "POST",
+			cache : false,
+			url : ServerUrl + "/BPClick/DeleteSpeed",
+			contentType : 'application/x-www-form-urlencoded',
+			data : {
+				SpeedId : SpeedId
+			},
+			dataType : "json",
+			success : function(data) {
+				alert(data.BPInfo.Msg);
+				window.location.href = ServerUrl + "/BPClick/Index/1";
+			},
+			error : function() {
+				alert('error');
+			}
+		});
+	}
+}

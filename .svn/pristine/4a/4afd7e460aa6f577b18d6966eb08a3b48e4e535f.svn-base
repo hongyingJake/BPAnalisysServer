@@ -1,0 +1,153 @@
+package com.bp;
+
+import java.util.Date;
+import java.util.List;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.ModelAndView;
+
+import com.bp.bll.BPFlg;
+import com.bp.bll.BPRegistDAL;
+import com.bp.common.LogEnum;
+import com.bp.common.LogWritter;
+import com.bp.common.PagerHelper;
+import com.bp.common.ResultInfoCommon;
+import com.bp.models.BPNoBuryModel;
+import com.bp.models.BPSpeedModel;
+import com.bp.models.BPSystemUserModel;
+
+/**
+ * @author zyk
+ * @version 创建时间：2017年9月15日 下午2:59:04 无埋点控制器 类说明
+ */
+@Controller
+public class BPNoBuryController extends BPBaseController {
+	/**
+	 * 主页面请求
+	 * 
+	 * @param request
+	 * @param pageIndex
+	 * @return
+	 */
+	@RequestMapping(value = "/BPNoBury/Index/{pageIndex}", method = RequestMethod.GET)
+	public ModelAndView BPNoBuryIndex(HttpServletRequest request, @PathVariable int pageIndex) {
+		ModelAndView mv = new ModelAndView("/BPNoBury/Index");
+		// 获取当前用户
+		BPSystemUserModel user = GetCurrentUser(request);
+		String NoBuryKey = request.getParameter("txtNoBuryKey") != null ? request.getParameter("txtNoBuryKey").trim()
+				: "";
+		List<BPNoBuryModel> lst = null;
+		// 分页查询
+		int intThisPage = pageIndex == 0 ? 1 : pageIndex; // 当前页数
+		int intPageSize = 15; // 每页显示数量
+		int intCount = 0; // 总记录数
+		int intPageCount = 0; // 总共页数
+		int currentIndex = (intThisPage - 1) * intPageSize;// 当前记录索引
+		Integer[] backRowCount = new Integer[1];
+		lst = getBPRegist().GetBPNoBuryList(NoBuryKey, user.UserId, intThisPage, intPageSize, user.IsAdmin == 1,
+				backRowCount);
+		intCount = backRowCount[0];
+		intPageCount = (int) Math.ceil(intCount * 1.0 / intPageSize);// 计算总页数
+		String strUrl = request.getContextPath() + "/BPNoBury/Index/";
+		String pageNav = PagerHelper.strPage(intCount, intPageSize, intPageCount, intThisPage, strUrl);
+		mv.addObject("BPNoBuryLst", lst);
+		mv.addObject("pageNav", pageNav);
+		mv.addObject("currentIndex", currentIndex);// 记录当前索引数
+		return mv;
+	}
+	/**
+	 * 无埋点注册
+	 * @param request
+	 * @return
+	 */
+	@RequestMapping(value = "/BPNoBury/Regist", method = RequestMethod.POST)
+	public @ResponseBody ModelAndView BPNoBuryRegist(HttpServletRequest request) {
+		ModelAndView mv = null;
+		BPSystemUserModel user=GetCurrentUser(request);
+		BPNoBuryModel model=new BPNoBuryModel();
+		model.setNoBuryKey(request.getParameter("NoBuryKey"));
+		model.setNoBuryInfo(request.getParameter("NoBuryInfo"));
+		model.setNoBuryExtend(request.getParameter("NoBuryExtend"));
+		model.setRegUserId(user.UserId);
+		model.setRegisterDate(new Date());
+		model.setDelete(false);
+		model=getBPRegist().AddBPNoBuryPoints(model);
+		//重新刷新页面
+		if(model!=null)
+		{
+			//更新缓存中无埋点键标识信息
+			BPFlg.AddBPNoBuryKeytoCache(model.getNoBuryKey());
+			mv=ResultInfoCommon.SuccessJson("无埋点注册成功！");
+			//记录操作日志
+			String msg = String.format("用户ID：%s 用户名称：%s,无埋点注册，埋点标识符：%s", user.BPUserId, user.UserName, model.getNoBuryKey());
+			WriterLog(msg);
+		}
+		else
+		{
+			mv=ResultInfoCommon.FailJson("无埋点注册失败，请联系管理员");
+		}
+		return mv;
+	}
+	
+	/**
+	 * 删除无埋点
+	 * @param request
+	 * @return
+	 */
+	@RequestMapping(value = "/BPNoBury/Delete", method = RequestMethod.POST)
+	public @ResponseBody ModelAndView BPNoBuryDelete(HttpServletRequest request) {
+		ModelAndView mv = null;
+		BPSystemUserModel user=GetCurrentUser(request);
+		String id=request.getParameter("NoBuryId").toString();
+		int NoBuryId=Integer.parseInt(id);
+		boolean isSuccess=getBPRegist().DeleteBPNoBury(NoBuryId);
+		//重新刷新页面
+		if(isSuccess)
+		{
+			//更新缓存中无埋点键标识信息
+			List<BPNoBuryModel> lst=getBPRegist().GetBPNoBuryById(NoBuryId);
+			if(lst!=null&&lst.size()>0){
+				BPNoBuryModel m=lst.get(0);
+				BPFlg.RemoveBPNokeyFromCache(m.getNoBuryKey());
+			}
+			
+			mv=ResultInfoCommon.SuccessJson("删除无埋点成功！");
+			//记录操作日志
+			String msg = String.format("用户ID：%s 用户名称：%s,删除无埋点，埋点ID：%s,",user.BPUserId,user.UserName,NoBuryId);
+			WriterLog(msg);
+		}
+		else
+		{
+			mv=ResultInfoCommon.FailJson("删除无埋点失败，请联系管理员！");
+		}
+		return mv;
+	}
+	
+	/**
+	 * 核对无埋点是否已经注册
+	 * @param request
+	 * @return
+	 */
+	@RequestMapping(value = "/BPNoBury/CheckParms", method = RequestMethod.POST)
+	public @ResponseBody int BPNoBuryCheckParms(HttpServletRequest request) {
+		String NoBuryKey=request.getParameter("NoBuryKey");
+		boolean isSuccess=false;
+		//数据校验
+		isSuccess=getBPRegist().BPNoBuryCheck(NoBuryKey);
+		if(isSuccess)
+		{
+			return 1;
+		}
+		else
+		{
+			return 0;
+		}
+	}
+
+}

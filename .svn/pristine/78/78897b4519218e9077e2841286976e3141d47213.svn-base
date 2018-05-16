@@ -1,0 +1,77 @@
+package com.bp.common;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * 数据校验类
+ * @author aaa
+ *
+ */
+public class DataValid {
+	 private static String OpenValid=null;
+	 //静态代码块，声明类时执行
+	 static{
+		 ConfigurationManager manager=new ConfigurationManager();
+		 OpenValid=manager.ReadConfiByNodeName("OpenValid");
+	 }
+	 /**
+	  * JSON转map对象后进行校验
+	  * @param jsonMap
+	  * json格式转换成Map对象
+	  * @param OutMsg
+	  * 验证错误问题说明
+	  * @return
+	  */
+	 public static boolean IsValidFormByJsonObj(Map<String, List<Map<String, String>>> jsonMap, String[] OutMsg)
+	 {
+		 if(OpenValid==null)
+		 {
+			 ConfigurationManager manager=new ConfigurationManager();
+			 OpenValid=manager.ReadConfiByNodeName("OpenValid");
+		 }
+		 OutMsg=new String[1];
+		 //1：判断是否开启校验
+		 if(!OpenValid.equals("1"))
+		 {
+			 return true;
+		 }
+		 //2:和埋点注册信息进行校验
+		 //2.1:校验埋点key是否注册
+		 //2.2:校验注册的埋点content属性个数和上传的content属性个数校验（个数正确不再校验，不校验属性名称是否一一匹配）
+		 //3:校验出错的信息进行关系型数据保存，用以查看
+		 return true;
+	 }
+	 
+	 /**
+	  * 校验埋点信息是否符合
+	  * @param key 键
+	  * @param val 内容
+	  * @param OutMsg 输出信息 取数组第一个值
+	  * @return
+	  */
+	 public static boolean IsValidFormBaseModel(String key,String val, String[] OutMsg)
+	 { 
+		 if(OpenValid==null)
+		 {
+			 ConfigurationManager manager=new ConfigurationManager();
+			 OpenValid=manager.ReadConfiByNodeName("OpenValid");
+		 }
+		 OutMsg=new String[1];
+		 //判断是否开启校验
+		 if(!OpenValid.equals("1"))
+		 {
+			 return true;
+		 }
+		 //判断是否可以转换成JSON格式
+		 if(JsonUtility.IsJSON(val))
+		 {
+			 return true;
+		 }
+		 else
+		 {
+			 OutMsg[0]="埋点内容信息转换JSON格式失败！";
+			return false; 
+		 }
+	 }
+}

@@ -1,0 +1,47 @@
+package com.bp.models;
+
+import java.util.Date;
+
+/**
+* @author zyk
+* @version 创建时间：2017年8月8日 下午4:12:38
+* 埋点主表  类说明
+*/
+public class BPPointsModel {
+	/*
+	 * 埋点ID
+	 */
+	public int BPId;
+	/*
+	 * 埋点键值
+	 */
+	public String BPFlg;
+	/*
+	 * 埋点名称
+	 */
+	public String BPName;
+	/*
+	 * 备注
+	 */
+	public String BPDemo;
+	/*
+	 * 注册用户
+	 */
+	public String RegUserId;
+	/*
+	 * 最后一个更新用户
+	 */
+	public String LastUpUserId;
+	/*
+	 * 注册日期
+	 */
+	public Date RegisterDate;
+	/*
+	 * 最后一次更新日期
+	 */
+	public Date LastUpDate;
+	/*
+	 * 是否有效 1：有效 0：无效
+	 */
+	public int IsValid;
+}

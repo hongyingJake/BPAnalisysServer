@@ -1,0 +1,123 @@
+//麦田埋点服务JS
+;
+(function(global, jQuery, undefined) {
+	var params = params || {};
+	// 设置默认参数
+	if (params) {
+		params.apiUrl = "http://172.16.5.52:8080/BPAnalisysServer/MtBPAPI";// 请求埋点API地址
+		params.async = true;// 异步请求
+		params.reqType = "GET";// 请求方式
+		params.cache = false;// 是否使用缓存
+	}
+	// 解析_configMT配置，设置默认参数
+	if (_configMT) {
+		for ( var i in _configMT) {
+			switch (_configMT[i][0]) {
+			case '_setAsync':
+				params.async = _configMT[i][1];
+				break;
+			case '_setApiUrl':
+				params.apiUrl = _configMT[i][1];
+				break;
+			case '_setReqType':
+				params.reqType = _configMT[i][1];
+				break;
+			case '_setCache':
+				params.cache = _configMT[i][1];
+				break;
+			default:
+				break;
+			}
+		}
+	}
+	// Document对象数据
+	// if (document) {
+	// params.domain = document.domain || '';
+	// params.url = document.URL || '';
+	// params.title = document.title || '';
+	// params.referrer = document.referrer || '';
+	// }
+	// 定义埋点服务插件
+	var mtbp = {
+		mt : function(key, content, successCal, failCal) {
+			AjaxReq(params.reqType, key, content, successCal, failCal);
+		},
+		mtGET : function(key, content, successCal, failCal) {
+			AjaxReq("GET", key, content, successCal, failCal);
+		},
+		mtPOST : function(key, content, successCal, failCal) {
+			AjaxReq("POST", key, content, successCal, failCal);
+		},
+		mtCustomAttr : customAttr
+		
+	}
+	//通过获取自定义属性发送埋点信息
+	//方法必须在window.onload中调用，否则JS未加载，访问不到方法
+	function customAttr(CustomObj)
+	{
+		//进行数据校验,必须值为空则返回
+		if(CustomObj.key==undefined||CustomObj.selector==undefined||CustomObj.customAttrs==undefined){
+			throw new Error("属性key,selector,customAttrs必须提供");
+			return;
+		}
+		// 设置默认属性
+		CustomObj = CustomObj || {};
+		if (typeof (CustomObj.reqType) == 'undefined') {
+			CustomObj.reqType=params.reqType;
+		}
+		if (typeof (CustomObj.eventType) == 'undefined') {
+			CustomObj.eventType="click";
+		}
+		jQuery(function() {
+			jQuery(CustomObj.selector).bind(CustomObj.eventType,function(e){
+				var $this=jQuery(this);
+				var content={};
+				//获取自定义属性
+				for(var attr in CustomObj.customAttrs){
+					content[CustomObj.customAttrs[attr]] = $this.attr(CustomObj.customAttrs[attr]);
+				}
+				//获取默认值
+				if(typeof(CustomObj.defAttrVal)!='undefined'){
+					for(var attr in CustomObj.defAttrVal){
+						if(typeof(CustomObj.defAttrVal[attr])!='undefined'){
+							content[attr]=CustomObj.defAttrVal[attr];
+						}
+					}
+				}
+				//发送ajax请求
+				AjaxReq(CustomObj.reqType,CustomObj.key,content,CustomObj.successCal,CustomObj.failCal);
+			});
+		});
+	}
+	// 发送Ajax请求
+	function AjaxReq(type, key, content, successCal, failCal) {
+		jQuery.ajax({
+			type : type,
+			async : params.async,
+			cache : params.cache,
+			url : params.apiUrl,
+			contentType : 'application/x-www-form-urlencoded',
+			//application/x-www-form-urlencoded  application/json;charset=UTF-8
+			// dataType : "jsonp",// 请求类型格式json/jsonp
+			data : {
+				key : key,
+				content : JSON.stringify(content)
+			},
+			success : function(data) {
+				if (successCal) {
+					successCal(data);
+				}
+			},
+			error : function(data) {
+				if (failCal) {
+					failCal(data);
+				}
+			}
+		});
+	}
+	// 最后将插件对象暴露给全局对象
+	if (!global.mtbp) {
+		global.mtbp = mtbp
+	}
+
+})(window, $);

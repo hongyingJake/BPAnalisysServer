@@ -1,0 +1,30 @@
+log4j.rootLogger=INFO,R,stdout    
+
+#save on console
+log4j.appender.stdout=org.apache.log4j.ConsoleAppender    
+log4j.appender.stdout.layout=org.apache.log4j.PatternLayout  
+log4j.appender.stdout.layout.ConversionPattern=Logger-->%5p{%F:%L}-%m%n   
+
+#save in files
+log4j.appender.R=org.apache.log4j.DailyRollingFileAppender    
+log4j.appender.R.File=${user.home}/logs/JavaBPLogs/logging.log4j
+log4j.appender.R.layout=org.apache.log4j.PatternLayout  
+log4j.appender.R.layout.ConversionPattern=Logger-->%5p{%F:%L}-%m%n   
+
+#save in files one day one file
+#OFF,FATAL,ERROR,WARN,INFO,DEBUG,ALL
+log4j.rootLogger=DEBUG,DAILY_FILE
+log4j.appender.DAILY_FILE=org.apache.log4j.DailyRollingFileAppender 
+log4j.appender.DAILY_FILE.file=${user.home}/logs/JavaBPLogs/logging.log4j
+log4j.appender.DAILY_FILE.DatePattern='_'yyyy-MM-dd'.log' 
+log4j.appender.DAILY_FILE.ImmediateFlush=true
+log4j.appender.DAILY_FILE.Append=true
+log4j.appender.DAILY_FILE.layout=org.apache.log4j.PatternLayout 
+log4j.appender.DAILY_FILE.layout.ConversionPattern=%d %5p [%t] (%F:%L) - %m%n 
+
+#Block other framework output information
+log4j.logger.org.springframework=OFF  
+log4j.logger.org.apache.struts2=OFF  
+log4j.logger.com.opensymphony.xwork2=OFF  
+log4j.logger.com.ibatis=OFF  
+log4j.logger.org.hibernate=OFF

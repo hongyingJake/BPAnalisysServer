@@ -1,0 +1,39 @@
+package com.bp.common;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
+import com.bp.models.ActionResultModel;
+import com.bp.models.ResultValue;
+
+/**
+ * Web Service 返回信息封装类型方法
+ * @author aaa
+ *
+ */
+public class ResultInfoCommon {
+	/**
+     * Web API成功返回消息
+     * @param msg
+     * @return
+     */
+    public static ResponseEntity<ActionResultModel> SuccessFulInfo(String msg)
+    {
+    	ActionResultModel model=new ActionResultModel();
+    	model.Msg=msg;
+    	model.Status=ResultValue.OK;
+    	return new ResponseEntity<ActionResultModel>(model,HttpStatus.OK);
+    }
+    /**
+     * Web API失败返回消息
+     * @param failMsg 失败后提示的信息
+     * @return
+     */
+    public static ResponseEntity<ActionResultModel> FailInfo(String failMsg)
+    {
+    	ActionResultModel model=new ActionResultModel();
+    	model.Msg=failMsg;
+    	model.Status=ResultValue.Fail;
+    	return new ResponseEntity<ActionResultModel>(model,HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+}

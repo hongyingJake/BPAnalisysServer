@@ -1,0 +1,43 @@
+@CHARSET "UTF-8";
+
+.ullicss {
+	height: 30px;
+}
+
+.ullicss ul {
+	list-style: none;
+}
+
+.ullicss li {
+	float: left;
+	width: 100px;
+	margin-left: 3px;
+	line-height: 30px;
+}
+
+.ullicss a:link {
+	color: pink;
+	font-weight: bold;
+	text-decoration: none;
+	background: green;
+}
+
+.ullicss a:visited {
+	color: pink;
+	font-weight: bold;
+	text-decoration: none;
+	background: green;
+}
+
+.ullicss a:hover {
+	color: green;
+	font-weight: bold;
+	text-decoration: none;
+	background: yellow;
+}
+
+.ullicss a {
+	display: block;
+	text-align: center;
+	height: 30px;
+}

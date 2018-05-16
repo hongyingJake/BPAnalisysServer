@@ -1,0 +1,273 @@
+package com.bp.bll;
+import java.io.File;
+import java.io.FileInputStream;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
+
+import com.bp.common.*;
+import com.bp.msgfactory.*;
+import com.bp.msginterface.*;
+
+/**
+* @author zyk
+* @version 创建时间：2017年8月7日 下午4:10:46
+* Web 服务线程监视工具 （监视消息队列服务器是否正常工作）类说明
+*/
+public class ThreadMonitor implements Runnable {
+	/*
+	 * 线程运行入口
+	 * @see java.lang.Runnable#run()
+	 */
+	public void run()
+	{
+		MonitorMQAPI();
+	}
+	/**
+	 * 线程空闲休息时间，单位：秒
+	 */
+	private static int ThreadFreeTime=1;
+	static{
+		ConfigurationManager mgr=new ConfigurationManager();
+		String freeTime=mgr.ReadConfiByNodeName("ThreadFreeTime")==""?"1":mgr.ReadConfiByNodeName("ThreadFreeTime");
+		ThreadFreeTime=Integer.parseInt(freeTime);
+	}
+	/**
+	 * API服务监视消息队列
+	 */
+	private void MonitorMQAPI()
+	{
+		IBaseMQ mQ=MQFactory.GetMQInfo();
+		while(true)
+		{
+			//判断消息队列是否可用
+			if (!BPFlg.getMSMQServerCanUse() && mQ.CanUseMQ())
+            {
+                //1:设置消息队列标识符可用
+                if (!BPFlg.getMSMQServerCanUse())
+                {
+                    BPFlg.setMSMQServerCanUse(true);
+                    LogWritter.LogWritterInfo(ThreadMonitor.class, LogEnum.Error,String.format("线程:%s API服务监视器--已查看到MQ消息服务已启动!", Thread.currentThread().getId()));
+                }
+            }
+            else if (BPFlg.getMSMQServerCanUse())
+            {
+            	 //查看是否有持久化消息需要写入到服务
+                //2:从持久化文本文件中读取消息写入到MQ中 
+                try
+                {
+                    //递归遍历共享文件目录，有文件则读取文件信息发送MQ
+                    DGDirFile(SaveMQLocal.ShareDir);
+                    //指定的时间单位为秒
+                    ThreadSleep(ThreadFreeTime);
+                }
+                catch (Exception e)
+                {
+                    LogWritter.LogWritterInfo(ThreadMonitor.class, LogEnum.Error,"API监视线程异常,"+e.getMessage());
+                }
+            }
+            else
+            {
+            	//指定的时间单位为秒
+            	ThreadSleep(ThreadFreeTime);
+            }
+		}
+	}
+	/**
+	 * 线程休息指定的时间
+	 * @param times 单位：秒
+	 */
+	private void ThreadSleep(int times){
+		//指定的时间单位为秒
+    	try  
+        {  
+    		Thread.sleep(times * 1000);
+        }  
+        catch (InterruptedException e)  
+        {  
+        	 LogWritter.LogWritterInfo(ThreadMonitor.class, LogEnum.Error,"API监视线程Sleep指定的时间异常，"+e.toString());
+        }
+	}
+	/**
+	 * 读取全部文件的内容写入到消息队列
+	 * @param f
+	 */
+	private void ReadAllFileContent(File f)
+	{
+		String content= SaveMQLocal.GetInfoBackClear(f.getAbsolutePath());
+		if(content!=null&&content.length()>0)
+		{
+			//消息添加到消息队列服务器，每一个消息都有一个换行符分隔
+			String[] MQSum=content.split("\r\n");
+			StringBuilder sb=new StringBuilder();
+			for(String msg:MQSum)
+			{
+				if(msg.trim().length()<=0)
+				{
+					continue;
+				}
+				if(!BPFlg.getMSMQServerCanUse()){
+					sb.append(msg);
+					sb.append("\r\n");
+					//SaveMQLocal.SaveMQToTxt(msg);
+					continue;
+				}
+				try
+				{
+					//不需要转换对象，保存时就说一个JSON字符串
+					//Object  obj= JsonUtility.JSONStrToObj(msg);
+					//获取到key
+					String strSum = msg.substring(1, msg.length() - 2);
+					String[] sum=strSum.split(":\\[");
+					if(sum!=null&&sum.length==2)
+					{
+						String key=sum[0].replaceAll("\"", "");
+						Object  obj=msg;
+						if(obj!=null)
+						{
+							MQFactory.GetMQInfo().SaveMQInfo(key,obj);
+							//System.out.println(obj);
+						}
+					}
+				}
+				catch(Exception e)
+				{
+					BPFlg.setMSMQServerCanUse(false);
+					//保存到文本文件
+					SaveMQLocal.SaveMQToTxt(msg);
+					//记录日志
+					LogWritter.LogWritterInfo(ThreadMonitor.class, LogEnum.Error,String.format("线程:%s 读取本地持久化文件到MQ过程，MQ服务异常，消息再次持久化到本地!", Thread.currentThread().getId()));
+					//停止当前线程指定时间
+					ThreadSleep(ThreadFreeTime);
+					e.printStackTrace();
+				}
+			}
+			//未发送的数据重新持久化到本地
+			if(sb.length()>0){
+				SaveMQLocal.SaveMQToTxt(sb);
+			}
+		}
+		else
+		{
+			ThreadSleep(ThreadFreeTime);
+		}
+	}
+	
+	/**
+	 * 重命名文件逐行读取文件后删除文件
+	 * @param f
+	 */
+	private void ReadRowFileContent(File f){
+		String Absolute=f.getAbsolutePath();//文件绝对地址
+		String resetName=Absolute+".current";//重命名后的文件
+		//文件内容过大需独立出来读取，重新命名文件
+		File newFile=new File(resetName);
+		//重命名后的文件只有当前这个进程访问，可逐行读取
+		FileInputStream inputStream = null;
+		Scanner sc = null;
+		try {
+			f.renameTo(newFile);
+		    inputStream = new FileInputStream(newFile);
+		    //通过Scanner可一行一行读取，不会像ReadBuffer一样都读取到内存然后在一行读取，容易内存溢出
+		    sc = new Scanner(inputStream, "UTF-8");
+		    while (sc.hasNextLine()) {
+		        String line = sc.nextLine();
+		      //获取到key
+				String strSum = line.substring(1, line.length() - 2);
+				String[] sum=strSum.split(":\\[");
+				if(sum!=null&&sum.length==2)
+				{
+					String key=sum[0].replaceAll("\"", "");
+					try{
+					MQFactory.GetMQInfo().SaveMQInfo(key,line);
+					}
+					catch(Exception e)
+					{
+						e.printStackTrace();
+						BPFlg.setMSMQServerCanUse(false);
+						//保存到文本文件
+						SaveMQLocal.SaveMQToTxt(line);
+						LogWritter.LogWritterInfo(ThreadMonitor.class, LogEnum.Error,"API监视线程逐行读取写入消息队列异常，已重新持久化本地，"+e.getMessage());
+					}
+				}
+		    }
+		} 
+		catch(Exception e)
+		{
+			LogWritter.LogWritterInfo(ThreadMonitor.class, LogEnum.Error,"API监视线程逐行读取消息异常"+e.getMessage());
+			e.printStackTrace();
+		}
+		finally {
+		    if (inputStream != null) {
+		    	try{
+		        inputStream.close();
+		    	}
+		    	catch(Exception e){
+		    		LogWritter.LogWritterInfo(ThreadMonitor.class, LogEnum.Error,"API监视线程关闭临时读取文件流异常"+e.getMessage());
+		    		e.printStackTrace();
+		    	}
+		    }
+		    if (sc != null) {
+		        sc.close();
+		    }
+		}
+		//读取完文件进行文件删除
+		try{
+		newFile.delete();
+		}
+		catch(Exception e){
+    		LogWritter.LogWritterInfo(ThreadMonitor.class, LogEnum.Error,"API监视线程删除临时文件异常"+e.getMessage());
+    		e.printStackTrace();
+		}
+	}
+	/**
+	 * 从本地文件读取消息发送到消息队列服务中
+	 * @param Dir
+	 */
+	private void DGDirFile(String Dir)
+	{
+		File file=new File(Dir);
+		if(file.isDirectory()&&file.exists())
+		{
+			if(BPFlg.getMSMQServerCanUse())
+			{
+				File[] files= file.listFiles();
+				for(File f:files)
+				{
+					if(!f.isDirectory()&&BPFlg.getMSMQServerCanUse())
+					{
+						//判断文件大小，大于500MB则逐行读取信息到消息队列（内存溢出），否则读取整个文件内容到消息队列
+						String fileName=f.getName();
+						String prefix=fileName.substring(fileName.lastIndexOf(".")+1);//文件扩展名
+						if(f.length()/1024/1024>500&&!prefix.equals("current")){
+							//重新命名文件，然后逐行读取发送
+							ReadRowFileContent(f);
+						}
+						else if(prefix.equals("current")){
+							//当前正在处理的文档，不进行操作
+						}
+						else
+						{
+							ReadAllFileContent(f);
+						}
+					}
+					else
+					{
+						//为目录则递归遍历
+						DGDirFile(f.getAbsolutePath());
+					}
+					//遍历玩一个目录或文件则停一下线程（防止系统死机）
+					ThreadSleep(ThreadFreeTime);
+				}
+			}
+			else
+			{
+				ThreadSleep(ThreadFreeTime);
+			}
+		}
+		else
+		{
+			ThreadSleep(ThreadFreeTime);
+		}
+	}
+}

@@ -1,0 +1,465 @@
+package com.bp.bll;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.List;
+
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.PreparedStatementCreator;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.simple.ParameterizedBeanPropertyRowMapper;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
+
+import com.bp.common.LogEnum;
+import com.bp.common.LogWritter;
+import com.bp.models.*;
+
+/**
+ * @author zyk
+ * @version 创建时间：2017年8月8日 下午4:24:51 埋点注册等信息数据库访问类 类说明
+ */
+public class BPRegistDAL {
+	private JdbcTemplate jdbcTemplate;
+
+	public void setJdbcTemplate(JdbcTemplate jdbcTemplate) {
+		this.jdbcTemplate = jdbcTemplate;
+	}
+
+	public JdbcTemplate getJdbcTemplate() {
+		return jdbcTemplate;
+	}
+
+	/**
+	 * 注册用户信息
+	 * 
+	 * @param model
+	 * @return
+	 */
+	public boolean AddSystemUser(BPSystemUserModel model) {
+		String sql = " insert into BPSystemUser (UserId,UserLoginName,UserLoginPwd,UserName,UserCompanyName,UserPhone,Demo,RegisterDate,IsValid) "
+				+ " values(?,?,?,?,?,?,?,?,?) ";
+		try {
+			jdbcTemplate
+					.update(sql,
+							new Object[] { model.UserId, model.UserLoginName, model.UserLoginPwd, model.UserName,
+									model.UserCompanyName, model.UserPhone, model.Demo, model.RegisterDate,
+									model.IsValid });
+		} catch (Exception e) {
+			LogWritter.LogWritterInfo(this.getClass(), LogEnum.Error, "注册用户信息异常："+e.toString());
+			return false;
+		}
+		return true;
+	}
+	/**
+	 * 登录
+	 * @param LoginName
+	 * @param LoginPwd
+	 * @return
+	 */
+	public BPSystemUserModel Login(String LoginName,String LoginPwd)
+	{
+		String sql=" select * from BPSystemUser where UserLoginName=? and UserLoginPwd=? ";
+		try
+		{
+			List<BPSystemUserModel> models= jdbcTemplate.query(sql, new Object[]{LoginName,LoginPwd},new BPSystemUserMapper());
+			if(models!=null&&!models.isEmpty())
+			{
+				return models.get(0);
+			}
+			else
+			{
+				return null;
+			}
+			//return jdbcTemplate.queryForObject(sql, ParameterizedBeanPropertyRowMapper.newInstance(BPSystemUserModel.class),LoginName,LoginPwd);
+		}
+		catch(EmptyResultDataAccessException e)
+		{
+			//未查询到
+			return null;
+		}
+		catch(IncorrectResultSizeDataAccessException e)
+		{
+			//查询多条记录
+			return null;
+		}
+		catch(Exception e)
+		{
+			LogWritter.LogWritterInfo(BPSystemUserModel.class, LogEnum.Error, "用户登录异常："+e.toString());
+			return null;
+		}
+	}
+	/**
+	 * 通过用户ID查询用户
+	 * @param UserId
+	 * @return
+	 */
+	public BPSystemUserModel GetUserByUserId(String UserId)
+	{
+		String sql=" select * from BPSystemUser where UserId=? ";
+		try
+		{
+			List<BPSystemUserModel> models= jdbcTemplate.query(sql, new Object[]{UserId},new BPSystemUserMapper());
+			if(models!=null&&!models.isEmpty())
+			{
+				return models.get(0);
+			}
+			else
+			{
+				return null;
+			}
+			//return jdbcTemplate.queryForObject(sql, ParameterizedBeanPropertyRowMapper.newInstance(BPSystemUserModel.class),UserId);
+		}
+		catch(EmptyResultDataAccessException e)
+		{
+			//未查询到
+			return null;
+		}
+		catch(IncorrectResultSizeDataAccessException e)
+		{
+			//查询多条记录
+			return null;
+		}
+		catch(Exception e)
+		{
+			LogWritter.LogWritterInfo(BPSystemUserModel.class, LogEnum.Error, "查询用户信息异常："+e.toString());
+			return null;
+		}
+	}
+	private static final class BPSystemUserMapper implements RowMapper {
+		public BPSystemUserModel mapRow(ResultSet rs, int rowNum) throws SQLException {
+			// TODO Auto-generated method stub
+			BPSystemUserModel model = new BPSystemUserModel();
+			model.BPUserId=rs.getInt("BPUserId");
+			model.UserId=rs.getString("UserId");
+			model.UserLoginName=rs.getString("UserLoginName");
+			model.UserLoginPwd=rs.getString("UserLoginPwd");
+			model.UserName=rs.getString("UserName");
+			model.UserCompanyName=rs.getString("UserCompanyName");
+			model.UserPhone=rs.getString("UserPhone");
+			model.Demo=rs.getString("Demo");
+			model.RegisterDate=rs.getDate("RegisterDate");
+			model.IsValid=rs.getInt("IsValid");
+			return model;
+		}
+	}
+	
+	/**
+	 * 注册埋点主表信息
+	 * @param model 具有主键BPId值
+	 * @return
+	 */
+	public BPPointsModel AddBPPoints(final BPPointsModel model)
+	{
+		final String sql = " insert into BPPoints (BPFlg,BPName,BPDemo,RegUserId,LastUpUserId,RegisterDate,LastUpDate,IsValid) "
+				+ " values(?,?,?,?,?,?,?,?) ";
+		KeyHolder keyHolder = new GeneratedKeyHolder();
+		try {
+//			jdbcTemplate
+//					.update(sql,
+//							new Object[] {model.BPFlg,model.BPName,model.BPDemo,model.RegUserId,model.LastUpUserId
+//									,model.RegisterDate,model.LastUpDate,model.IsValid}
+//					);
+			//返回自增ID
+			jdbcTemplate.update(new PreparedStatementCreator() {
+	            public PreparedStatement createPreparedStatement(Connection con)
+	                    throws SQLException {
+	                PreparedStatement ps = con.prepareStatement(sql,Statement.RETURN_GENERATED_KEYS);
+	                int z = 0;
+	                ps.setString(++z, model.BPFlg);
+	                ps.setString(++z,model.BPName);
+	                ps.setString(++z, model.BPDemo);
+	                ps.setString(++z, model.RegUserId);
+	                ps.setString(++z, model.LastUpUserId);
+	                ps.setDate(++z, new java.sql.Date(model.RegisterDate.getTime()));
+	                ps.setDate(++z, new java.sql.Date(model.LastUpDate.getTime()));
+	                ps.setInt(++z, model.IsValid);
+	                return ps;
+	            }
+	        }, keyHolder);
+			//设置主表的自增ID
+			model.BPId=keyHolder.getKey().intValue();
+		} catch (Exception e) {
+			LogWritter.LogWritterInfo(this.getClass(), LogEnum.Error, "注册埋点主表信息异常："+e.toString());
+			return null;
+		}
+		return model;
+	}
+	
+	/**
+	 * 更新埋点主表（只更新BPName,BPDemo,LastUpDate,LastUpUserId）
+	 * @param model
+	 * @return
+	 */
+	public boolean UpdateBPPoints(BPPointsModel model)
+	{
+		String sql = " update BPPoints set BPName=?,BPDemo=?,LastUpDate=?,LastUpUserId=? "
+				+ " where BPId=? ";
+		try {
+			jdbcTemplate
+					.update(sql,
+							new Object[] {model.BPName,model.BPDemo,model.LastUpDate,
+									model.LastUpUserId,model.BPId}
+					);
+		} catch (Exception e) {
+			LogWritter.LogWritterInfo(this.getClass(), LogEnum.Error, "更新埋点主表信息异常："+e.toString());
+			return false;
+		}
+		return true;
+	}
+	/**
+	 * 通过埋点标识查找埋点信息
+	 * @param BPFlg
+	 * @return
+	 */
+	public BPPointsModel GetBPPointsByBPFlg(String BPFlg)
+	{
+		String sql="  select * from BPPoints where BPFlg=? ";
+		try
+		{
+			List<BPPointsModel> models= jdbcTemplate.query(sql, new Object[]{BPFlg},new BPPointsMapper());
+			if(models!=null&&!models.isEmpty())
+			{
+				return models.get(0);
+			}
+			else
+			{
+				return null;
+			}
+		}
+		catch(Exception e)
+		{
+			LogWritter.LogWritterInfo(BPSystemUserModel.class, LogEnum.Error, "通过埋点标识查询埋点主表信息异常："+e.toString());
+			return null;
+		}
+	}
+	/**
+	 * 通过埋点主表ID获取埋点主表信息
+	 * @param BPId
+	 * @return
+	 */
+	public BPPointsModel GetBPPointsByBPId(String BPId)
+	{
+		String sql="  select * from BPPoints where BPId=? ";
+		try
+		{
+			List<BPPointsModel> models= jdbcTemplate.query(sql, new Object[]{BPId},new BPPointsMapper());
+			if(models!=null&&!models.isEmpty())
+			{
+				return models.get(0);
+			}
+			else
+			{
+				return null;
+			}
+		}
+		catch(Exception e)
+		{
+			LogWritter.LogWritterInfo(BPSystemUserModel.class, LogEnum.Error, "查询埋点主表信息异常："+e.toString());
+			return null;
+		}
+	}
+
+	/**
+	 * 查询埋点主表信息
+	 * @return
+	 */
+	public List<BPPointsModel> GetBPPointsList()
+	{
+		String sql = " select * from BPPoints where IsValid=1 ";
+		try{
+			return jdbcTemplate.query(sql,new BPPointsMapper());
+		}
+		catch(Exception e)
+		{
+			LogWritter.LogWritterInfo(this.getClass(), LogEnum.Error, "获取埋点主表信息异常："+e.toString());
+			return null;
+		}
+	}
+	/**
+	 * 模糊查询埋点主表信息
+	 * @param BPName 埋点模糊查询名称
+	 * @return
+	 */
+	public List<BPPointsModel> GetBPPointsListLike(String RegUserId,String BPName)
+	{
+		String sql = " select * from BPPoints where IsValid=1 and RegUserId=? and BPName like '%"+BPName+"%' ";
+		try{
+			return jdbcTemplate.query(sql,new Object[]{	RegUserId},new BPPointsMapper());
+		}
+		catch(Exception e)
+		{
+			LogWritter.LogWritterInfo(this.getClass(), LogEnum.Error, "获取埋点主表模糊查询信息异常："+e.toString());
+			return null;
+		}
+	}
+	/**
+	 * 查询埋点主表信息
+	 * @param RegUserId 注册用户ID
+	 * @return
+	 */
+	public List<BPPointsModel> GetBPPointsListByRegUId(String RegUserId)
+	{
+		String sql = " select * from BPPoints where IsValid=1 and RegUserId=? ";
+		try{
+		return jdbcTemplate.query(sql,new Object[] { RegUserId},  new BPPointsMapper());
+		}
+		catch(Exception e)
+		{
+			LogWritter.LogWritterInfo(this.getClass(), LogEnum.Error, "获取埋点主表信息异常："+e.toString());
+			return null;
+		}
+	}
+	
+	/**
+	 * 注册埋点子表信息
+	 * @param model
+	 * @return
+	 */
+	public BPSubPointsModel AddBPSubPoints(final BPSubPointsModel model)
+	{
+		final String sql = " insert into BPSubPoints (BPId,BPKName,BPKValue) "
+				+ " values(?,?,?) ";
+		KeyHolder keyHolder = new GeneratedKeyHolder();
+		try {
+//			jdbcTemplate
+//					.update(sql,
+//							new Object[] {model.BPId,model.BPKName,model.BPKValue});
+			//设置主表的自增ID
+			jdbcTemplate.update(new PreparedStatementCreator() {
+	            public PreparedStatement createPreparedStatement(Connection con)
+	                    throws SQLException {
+	                PreparedStatement ps = con.prepareStatement(sql,Statement.RETURN_GENERATED_KEYS);
+	                int z = 0;
+	                ps.setInt(++z, model.BPId);
+	                ps.setString(++z,model.BPKName);
+	                ps.setString(++z, model.BPKValue);
+	                return ps;
+	            }
+	        }, keyHolder);
+			model.BPSubPointId=keyHolder.getKey().intValue();
+		} catch (Exception e) {
+			LogWritter.LogWritterInfo(this.getClass(), LogEnum.Error, "注册埋点子表信息异常："+e.toString());
+			return null;
+		}
+		return model;
+	}
+	/**
+	 * 通过埋点键集合名称获取键信息
+	 * @param KeyName
+	 * @return
+	 */
+	public BPSubPointsModel GetBPSubPointsByKeyName(int BPId,String KeyName)
+	{
+		String sql=" select * from BPSubPoints where BPId=? and BPKName=? ";
+		try
+		{
+			List<BPSubPointsModel> models= jdbcTemplate.query(sql, new Object[]{BPId,KeyName},new BPSubPointsMapper());
+			if(models!=null&&!models.isEmpty())
+			{
+				return models.get(0);
+			}
+			else
+			{
+				return null;
+			}
+		}
+		catch(Exception e)
+		{
+			LogWritter.LogWritterInfo(BPSystemUserModel.class, LogEnum.Error, "通过埋点键集合名称获取键信息异常："+e.toString());
+			return null;
+		}
+	}
+	/**
+	 * 获取埋点子表键信息列表
+	 * @param BPId
+	 * @return
+	 */
+	public List<BPSubPointsModel> GetBPSubPointsList(int BPId)
+	{
+		String sql = " select * from BPSubPoints where BPId=? ";
+		try{
+		return jdbcTemplate.query(sql,new Object[] { BPId}, new BPSubPointsMapper());
+		}
+		catch(Exception e)
+		{
+			LogWritter.LogWritterInfo(this.getClass(), LogEnum.Error, "获取埋点子表信息异常："+e.toString());
+			return null;
+		}
+	}
+	/**
+	 * 删除埋点子表信息
+	 * @param BPSubPointId
+	 * @return
+	 */
+	public  boolean DeleteBPSubPoints(int BPSubPointId)
+	{
+		String sql = " delete from BPSubPoints where BPSubPointId=? ";
+		try{
+			jdbcTemplate.update(sql,BPSubPointId);
+		}
+		catch(Exception e)
+		{
+			LogWritter.LogWritterInfo(this.getClass(), LogEnum.Error, "删除埋点子表信息异常："+e.toString());
+			return false;
+		}
+		return true;
+	}
+	/**
+	 * 通过BPId和键名称删除键信息
+	 * @param BPId
+	 * @param BPKName
+	 * @return
+	 */
+	public  boolean DeleteBPSubPoints(int BPId,String BPKName)
+	{
+		String sql = " delete from BPSubPoints where BPId=? and BPKName=? ";
+		try{
+			jdbcTemplate.update(sql,BPId,BPKName);
+		}
+		catch(Exception e)
+		{
+			LogWritter.LogWritterInfo(this.getClass(), LogEnum.Error, "删除埋点子表信息异常："+e.toString());
+			return false;
+		}
+		return true;
+	}
+	
+	
+	/*
+	 * 因为query方法不能直接放回一个数组，所以我们只能通过rowMapper赋值给BPPointsModel;
+	 * RowMapper可以将数据中的每一行封装成用户定义的类，在数据库查询中，如果返回的类型是用户自定义的类型则需要包装
+	 */
+	private static final class BPPointsMapper implements RowMapper {
+		public BPPointsModel mapRow(ResultSet rs, int rowNum) throws SQLException {
+			// TODO Auto-generated method stub
+			BPPointsModel model = new BPPointsModel();
+			model.BPId=rs.getInt("BPId");
+			model.BPFlg=rs.getString("BPFlg");
+			model.BPName=rs.getString("BPName");
+			model.BPDemo=rs.getString("BPDemo");
+			model.RegUserId=rs.getString("RegUserId");
+			model.LastUpUserId=rs.getString("LastUpUserId");
+			model.RegisterDate=rs.getDate("RegisterDate");
+			model.LastUpDate=rs.getDate("LastUpDate");
+			model.IsValid=rs.getInt("IsValid");
+			return model;
+		}
+	}
+	private static final class BPSubPointsMapper implements RowMapper {
+		public BPSubPointsModel mapRow(ResultSet rs, int rowNum) throws SQLException {
+			// TODO Auto-generated method stub
+			BPSubPointsModel model = new BPSubPointsModel();
+			model.BPId=rs.getInt("BPId");
+			model.BPSubPointId=rs.getInt("BPSubPointId");
+			model.BPKName=rs.getString("BPKName");
+			model.BPKValue=rs.getString("BPKValue");
+			return model;
+		}
+	}
+}

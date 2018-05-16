@@ -1,0 +1,190 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>埋点系统帮助</title>
+<link
+	href="${pageContext.request.contextPath}/js/codemirror/codemirror.css"
+	rel="stylesheet" />
+<link
+	href="${pageContext.request.contextPath}/js/codemirror/eclipse.css"
+	rel="stylesheet" />
+<script src="${pageContext.request.contextPath}/js/jquery-1.8.3.js"></script>
+<script
+	src="${pageContext.request.contextPath}/js/codemirror/codemirror.js"></script>
+<script
+	src="${pageContext.request.contextPath}/js/codemirror/javascript.js"></script>
+<script src="${pageContext.request.contextPath}/js/codemirror/xml.js"></script>
+<style type="text/css">
+body {
+	font-familly: 'Source Sans Pro', Helvetica, Arial, sans-serif;
+	line-height: 1.5;
+}
+
+section {
+	border-top: 1px solid #E30808;
+	margin: 1.5em 0;
+}
+
+section, article {
+	display: block;
+	padding: 0;
+}
+.sharpen{
+	color:red;
+}
+</style>
+</head>
+<body>
+	<article> <section id="getMTBPJS">
+	<h1>页面引入埋点JS包(mtbp对象)</h1>
+	<p>埋点JS包依赖<span class="sharpen">JQuery插件</span>，引入埋点JS包之前需引入<span class="sharpen">JQuery插件</span><br/>
+	埋点JS包可传入参数配置，只需要在页面声明全局<code><span class="sharpen">_configMT</span></code>字典变量。字典中的所有参数都有默认值，如页面
+	指定参数后，可替换默认参数。<br/>字典参数有：<br/>
+	_setAsync：boolean值，控制JS包的请求方式异步或同步，默认true(异步)<br/>
+_setApiUrl：字符串，发送埋点的API地址（可指定发送其他API地址，默认埋点服务API地址）<br/>
+_setReqType：字符串“GET”或“POST”，标识JS包默认发送请求方式，默认GET请求<br/>
+_setCache：Boolean值，控制JS包中是否使用缓存，默认false(推荐)<br/>
+推荐加载埋点JS包通过<span class="sharpen">异步方式加载</span>，如下所示：
+	</p>
+	<textarea class="jsStyle">
+var _configMT = _configMT || [];
+_configMT.push(['_setAsync', true]);
+_configMT.push(['_setReqType', "POST"]);
+(function () {
+    var ma = document.createElement('script'); ma.type = 'text/javascript'; ma.async = true;
+    ma.src = ('https:' == document.location.protocol ? 'https://localhost' : 'http://localhost') + ':8080/BPAnalisysServer/mtscript/mtbp.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ma, s);
+})();
+	</textarea> 
+	<p>页面直接引用埋点JS包，如下所示：</p>
+	<textarea class="htmlStyle">
+<script src="http://localhost:8080/BPAnalisysServer/mtscript/mtbpmin.js"></script>
+	</textarea>
+	</section> </article>
+	<article> <section id="getmt">
+	<h1>传递JSON对象埋点</h1>
+	<p>埋点mtbp全局对象提供<span class="sharpen">mtbp.mt(key, content, successCal, failCal)</span>方法进行埋点<br/>
+	Key：注册埋点时的埋点标识符<br/>
+	content：上传的埋点JSON对象数据<br/>
+	successCal：请求成功时的回调函数，可不提供<br/>
+	failCal：请求失败时的回调函数，可不提供<br/>
+	请求方式：GET或POST由configMT提供的默认请求方式</p>
+	<textarea class="htmlStyle">
+<script type="text/javascript">
+    var content = { "CurrentThreadId": "11111111111", "EventType": "click", "eventNumber": "6", "eventAreaFlg": "地铁区", "elementID": "2017042001", "eventTitle": "北京", "IP": "111.207.209.2", "ClientFlg": "1", "BrowserType": "Firefox_54.0" };
+</script> />
+<input type="button" onclick="javascript: mtbp.mt('keyClickNumber', content);" value="顺义地铁站" /><br />
+<input type="button" onclick="javascript: mtbp.mtGET('keyClickNumber', content, success)" value="望京东" /><br />
+	</textarea> </section> </article>
+	
+	<article> <section id="getmtpl">
+	<h1>批量上传</h1>
+	<p>埋点服务系统提供同一个埋点标识符可批量上传埋点信息，上传的JSON对象为<span class="sharpen">JSON对象数组</span></p>
+	<textarea class="htmlStyle">
+<script type="text/javascript">
+    var content = { "eventType": "click", "areaTitle": "高端房源", "areaFlg": "gaoduanfangyuan"};
+    var contentSum=[content,content,content];
+</script> />
+<input type="button" onclick="javascript: mtbp.mt('gaoduanFangyuan', contentSum);" value="批量上传" /><br />
+	</textarea> </section> </article>
+	
+	<article> <section id="getAndPost">
+	<h1>GET和POST请求</h1>
+	<p>埋点服务系统提供<span class="sharpen">GET</span>和<span class="sharpen">POST</span>请求API，请求方式分别对应GET请求和POST请求</p>
+	<textarea class="htmlStyle">
+<input type="button" onclick="javascript: mtbp.mtGET('gaoduanFangyuan', { 'areaFlg': 'gaoduanfangyuan'})" value="北京二手房" /><br />
+<input type="button" onclick="javascript:mtbp.mtPOST('gaoduanFangyuan',{ 'areaFlg': 'gaoduanfangyuan'})" value="高端房源" /><br />
+	</textarea> </section> </article>
+	
+	<article> <section id="customProp">
+	<h1>自定义页面元素属性上传埋点</h1>
+	<p>埋点mtbp全局对象提供<span class="sharpen">mtbp.mtCustomAttr(customObj)</span>方法进行埋点<br/>
+	customObj：JSON对象，属性有：<span class="sharpen">reqType，eventType，key，selector，customAttrs，defAttrVal，successCal，failCal</span><br/>
+	reqType：API请求方式GET或POST，默认GET请求<br/>
+	eventType：在元素的哪个事件类型上添加埋点，默认click事件<br/>
+	<span class="sharpen">key</span>：注册埋点时的埋点标识符，必须提供<br/>
+	<span class="sharpen">selector</span>：jQuery选择器，必须提供<br/>
+	<span class="sharpen">customAttrs</span>：自定义属性字符串数组，告诉mtbp需要获取元素的哪些属性进行埋点，上传的埋点键值对(属性名称:属性值),必须提供<br/>
+	defAttrVal：默认键值对参数，会作为埋点键值对集合上传，可不提供</br>
+	successCal：请求成功时的回调函数，可不提供<br/>
+	failCal：请求失败时的回调函数，可不提供
+	<textarea class="jsStyle">
+<script type="text/javascript">
+        //自定义属性埋点
+        var customObj = {
+            reqType: "GET",//有默认值
+            eventType: "click",//默认值为click
+            key: "keyClickNumber",//必须提供
+            selector: "[bpcusattr='BPClick']",//必须提供
+            customAttrs: ["CurrentThreadId", "elementID", "eventAreaFlg"],//必须提供
+            defAttrVal: {
+                EventType: "Click",
+                eventNumber: "6",
+                eventTitle: "北京",
+                IP: "111.207.209.2",
+                ClientFlg: "1",
+                BrowserType: "Firefox_54.0"
+            },
+            successCal: null, //可不提供
+            failCal:null//可不提供
+        };
+		 //注意：方法mtCustomAttr需要在页面的mtbp.js加载(异步加载)完成后才可调用，否则访问不到对象
+        window.onload = function () {
+            mtbp.mtCustomAttr(customObj);
+        };
+</script>
+	</textarea> 
+	<textarea class="htmlStyle">
+<a href="#" bpcusattr="BPClick" currentthreadid="1" elementid="2017042001" eventareaflg="地铁区">顺义</a><br />
+	</textarea>
+	</section> </article>
+	
+	<article> <section id="speedBp">
+	<h1>快速实现事件埋点统计</h1>
+	<p>埋点服务系统提供<span class="sharpen">mtbp.mtClick()</span>方法，该方法直接调用，必须提供一个参数，最多提供<span class="sharpen">3</span>个参数，表示埋点统计位置的标识符<br/>
+	埋点服务系统默认注册(defaultFunClickCount|默认方法统计点击数量)埋点(管理员可查看)，该埋点中已注册3个键值对集合参数，
+	键名称分别是：extendParams01，extendParams02，extendParams03。键集合分别对应mtClick方法的3个扩展参数。
+	</p>
+	<textarea class="htmlStyle">
+<input type="button" onclick="javascript: mtbp.mtClick('xinzengfangyuan');" value="新增房源" /><br />
+<input type="button" onclick="javascript: mtbp.mtClick('ditumoshi', 'shenghuoquan');" value="地图模式->生活圈" /><br />
+	</textarea> </section> </article>
+	
+	<article> <section id="resultState">
+	<h1>埋点服务响应结果状态说明</h1>
+	<p>
+	</p>
+	<textarea class="jsStyle">
+BPInfo :{"Status":"OK","Msg":"捕捉信息成功!"}
+BPInfo :{"Status":"Fail","Msg":"埋点校验失败说明"}
+BPInfo :{"Status":"Fail","Msg":"埋点内容信息转换JSON格式失败！"}
+	</textarea>
+	</section> </article>
+	
+	<!-- 遍历textarea元素，设置codeMirror样式 -->
+	<script>
+		$(function(){
+			$('.jsStyle').map(function(i,e){
+				var editor = CodeMirror.fromTextArea($(e)[0], {
+					lineNumbers : true,
+					mode : "javascript",
+					theme : "eclipse"
+				});
+				editor.setOption('lineWrapping', true);//设置自动换行
+				editor.setSize('auto', 'auto');//设置自适应高度
+			});
+			$('.htmlStyle').map(function(i,e){
+				var editor = CodeMirror.fromTextArea($(e)[0], {
+					lineNumbers : true,
+					mode : "text/html",
+				});
+				editor.setOption('lineWrapping', true);//设置自动换行
+				editor.setSize('auto', 'auto');//设置自适应高度
+			});
+		});
+	</script>
+</body>
+</html>

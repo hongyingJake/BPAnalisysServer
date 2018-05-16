@@ -1,0 +1,33 @@
+package com.bp.bll;
+/**
+* @author zyk
+* @version 创建时间：2017年8月7日 上午11:27:11
+* 埋点服务系统相关标识 类说明
+*/
+public class BPFlg {
+	
+	/**
+	 * 消息队列服务是否可用
+	 */
+	private static boolean MSMQServerCanUse=true;
+	private static Object objClock=new Object();
+	/**
+	 * 获取消息队列服务是否可用
+	 * @return
+	 */
+	public static boolean getMSMQServerCanUse()
+	{
+		return MSMQServerCanUse;
+	}
+	/**
+	 * 设置消息队列是否可使用
+	 * @param canUse
+	 */
+	public static void setMSMQServerCanUse(boolean canUse)
+	{
+		synchronized (objClock)
+		{
+			MSMQServerCanUse=canUse;
+		}
+	}
+}

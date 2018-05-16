@@ -1,0 +1,119 @@
+package com.bp.bll;
+
+import java.sql.ResultSet;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.bp.common.ConfigurationManager;
+import com.bp.common.LogEnum;
+import com.bp.common.LogWritter;
+import com.bp.models.BPSubPointsModel;
+
+/**
+* @author zyk
+* @version 创建时间：2017年8月11日 下午1:54:14
+* 数据库操作类说明
+* 由于通过Spring MVC方式注入属性到控制器WebPCApiController，实现JDBC数据库的操作有问题。这里直接通过创建数据库连接
+*/
+public class BPDbBaseDAL {
+	private static String DBConnStr=null;
+	static{
+		ConfigurationManager manager=new ConfigurationManager();
+		DBConnStr=manager.ReadConfiByNodeName("DBConnStr");
+	}
+	private MySQLHelper helper=null;
+	/**
+	 * 构造方法
+	 */
+	public BPDbBaseDAL()
+	{
+		if(DBConnStr==null)
+		{
+			ConfigurationManager manager=new ConfigurationManager();
+			DBConnStr=manager.ReadConfiByNodeName("DBConnStr");
+		}
+		try
+		{
+			this.helper=new MySQLHelper(DBConnStr);
+		}catch(Exception e)
+		{
+			LogWritter.LogWritterInfo(this.getClass(), LogEnum.Error, "创建数据库连接对象异常，请联系管理员！");
+		}
+	}
+    
+	/**
+	 * 埋点校验错误信息保存到数据库
+	 * @param BPFlg 埋点键值名称
+	 * @param errMsg  校验错误信息
+	 */
+	public void AddValidInfoToDB(String BPFlg,String errMsg)
+	{
+		String sql = " insert into BPValidErrInfo (BPFlg,ErrMsg) "
+				+ " values(?,?) ";
+		try {
+			this.helper.executeNonquery(sql, new Object[]{BPFlg,errMsg});
+		} catch (Exception e) {
+			LogWritter.LogWritterInfo(this.getClass(), LogEnum.Error, "数据库录入埋点校验异常信息异常："+e.toString());
+		}
+	}
+	
+	/**
+	 * 获取快速埋点信息其他参数信息
+	 * @param pars1快速埋点第一个参数
+	 * @return
+	 */
+	public  List<String> GetSpeedOthKeys(String pars1){
+		List<String> lst=new ArrayList<String>();
+		String sql=" select extendParams02,extendParams03 from BPSpeedPoints where isDelete=0 and extendParams01=? ";
+		try{
+			ResultSet pResultSet=this.helper.query(sql, new Object[] {pars1});
+			// 显示数据  
+            while (pResultSet.next())  
+            {  
+            	lst.add(pResultSet.getString("extendParams02"));
+            	lst.add(pResultSet.getString("extendParams03"));
+            }  
+            pResultSet.close();
+            this.helper.close();
+            return lst;
+		}
+		catch(Exception e)
+		{
+			LogWritter.LogWritterInfo(this.getClass(), LogEnum.Error, "通过快速埋点第一参数获取其他参数信息异常："+e.toString());
+			return null;
+		}
+	}
+	
+	/**
+	 * 通过埋点标识符获取埋点键集合
+	 * @param BPFlg 埋点标识符
+	 * @return
+	 */
+	public List<BPSubPointsModel> GetBPSubPointsKValuesByBPFlg(String BPFlg)
+	{
+		String sql = " select BPSubPointId,BPId,BPKName,BPKValue from bpsubpoints "
+				+ " where bpid in (select  bpid from bppoints where bpflg=? ) ";
+		List<BPSubPointsModel> lst=new ArrayList<BPSubPointsModel>();
+		try{
+			ResultSet pResultSet=this.helper.query(sql, new Object[] {BPFlg});
+			// 显示数据  
+            while (pResultSet.next())  
+            {  
+            	BPSubPointsModel m=new BPSubPointsModel();
+            	m.BPSubPointId=pResultSet.getInt("BPSubPointId");
+            	m.BPId=pResultSet.getInt("BPId");
+            	m.BPKName=pResultSet.getString("BPKName");
+            	m.BPKValue=pResultSet.getString("BPKValue");
+            	lst.add(m);
+            }  
+            pResultSet.close();
+            this.helper.close();
+            return lst;
+		}
+		catch(Exception e)
+		{
+			LogWritter.LogWritterInfo(this.getClass(), LogEnum.Error, "通过埋点标识符获取埋点键集合信息异常："+e.toString());
+			return null;
+		}
+	}
+}

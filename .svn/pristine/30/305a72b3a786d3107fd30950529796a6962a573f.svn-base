@@ -1,0 +1,459 @@
+package com.bp.common;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.RandomAccessFile;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.charset.Charset;
+import java.util.concurrent.ArrayBlockingQueue;
+
+/**
+ * @author zyk
+ * @version 创建时间：2017年8月7日 下午12:04:15 文本文件读取操作类说明
+ */
+public class IOTxtHelper {
+	private static String encoding = "UTF-8";
+	private final static Charset charset = Charset.forName(encoding);
+	private static int cacheLength = 5000;// 缓存大小
+	static{
+		ConfigurationManager mgr=new ConfigurationManager();
+		String cache=mgr.ReadConfiByNodeName("CacheLength");
+		if(cacheLength==5000){
+			cacheLength=Integer.parseInt(cache);
+		}
+	}
+	/**
+	 * 消息队列缓存消息后续持久化文件中
+	 */
+	private static ArrayBlockingQueue<String> que = new ArrayBlockingQueue<String>(cacheLength);
+
+	/**
+	 * 判断文件是否存在
+	 * 
+	 * @param filePath
+	 * @return
+	 */
+	public static boolean Exists(String filePath) {
+		if (filePath == null || filePath.trim().length() <= 0) {
+			return false;
+		}
+		synchronized (IOTxtHelper.class) {
+			File file = new File(filePath);
+			if (file.exists()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * 创建目录
+	 * 
+	 * @param dirName
+	 * @return
+	 */
+	public static boolean CreateDir(String dirName) {
+		File dir = new File(dirName);
+		synchronized (IOTxtHelper.class) {
+			if (!dir.exists()) {
+				if (!dirName.endsWith(File.separator)) {
+					dirName = dirName + File.separator;
+				}
+				return dir.mkdirs();
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * 创建文件
+	 * 
+	 * @param filePath
+	 * @return
+	 */
+	public static boolean CreateFile(String filePath) {
+		File file = new File(filePath);
+		try {
+			if (!file.exists()) {
+				if (!file.getParentFile().exists()) {
+					// 判断文件目录是否存在,不存在则创建
+					file.getParentFile().mkdirs();
+				}
+				synchronized (IOTxtHelper.class) {
+					return file.createNewFile();
+				}
+			}
+			return true;
+		} catch (IOException e) {
+			e.printStackTrace();
+			return false;
+		}
+	}
+
+	/**
+	 * 读取文件信息
+	 * 
+	 * @param fileName
+	 *            文件名称
+	 * @param isClear
+	 *            读取后是否清空文件
+	 * @return
+	 * @throws Exception
+	 */
+	public static String Read(String fileName, boolean isClear) throws Exception {
+		// return ReadNoLock(fileName, isClear);
+		return ReadByLock(fileName, isClear);//通过锁控制并发
+	}
+
+	/**
+	 * 通过文件锁读取文件
+	 * 
+	 * @param fileName
+	 * @param isClear
+	 * @return
+	 * @throws Exception
+	 */
+	private static String ReadByLock(String fileName, boolean isClear) throws Exception {
+		if (!Exists(fileName)) {
+			return null;
+		}
+		File file = new File(fileName);
+		if (file.isFile() && file.exists()) {
+			StringBuffer sb = new StringBuffer();
+			RandomAccessFile fis = new RandomAccessFile(file, "rw");
+			FileChannel fcin = fis.getChannel();
+			FileLock flin = null;
+			int i = 0;
+			try {
+				// 1:拿取文件锁,最多获取3次锁
+				while (flin == null) {
+					i++;
+					if (i >= 3) {
+						break;
+					}
+					try {
+						synchronized (IOTxtHelper.class) {
+							flin = fcin.tryLock();
+						}
+					} catch (Exception e) {
+						Thread.sleep(50);
+					}
+					if (flin == null) {
+						Thread.sleep(50);
+					}
+				}
+				if (flin != null) {
+					// 2:读取全部文件,如果未获取到文件锁怎不读取文件
+					// 把文件读取到二进制字符串中，由于每行信息是一个独立的消息，不能够分批读取(转换编码出现乱码),每次都读取所有信息，文件大小尽量不要超过200MB
+					int fileL = (int) file.length();
+					if (fileL > 0) {
+						byte[] buf = new byte[fileL];
+						int ll = 0;
+						while ((ll = fis.read(buf)) != -1) {
+							sb.append(new String(buf, 0, ll, encoding));
+						}
+						// MappedByteBuffer mappedByteBuffer =
+						// fcin.map(MapMode.READ_WRITE, 0, fcin.size());
+						// sb.append(charset.decode(mappedByteBuffer));
+						// mappedByteBuffer=null;
+						if (isClear) {
+							// 清空文件信息
+							FileWriter fileWriter = new FileWriter(file);
+							fileWriter.write("");
+							fileWriter.flush();
+							fileWriter.close();
+							// mappedByteBuffer.clear();
+							// mappedByteBuffer.force();
+							// mappedByteBuffer.flip();
+						}
+					} else {
+						return null;
+					}
+
+				} else {
+					return null;
+				}
+			} catch (Exception e) {
+				throw e;
+			} finally {
+				// 3:释放资源
+				if (flin != null) {
+					flin.release();
+				}
+				fcin.close();
+				fis.close();
+				fis = null;
+			}
+			return sb.toString();
+		} else {
+			return null;
+		}
+	}
+
+	/**
+	 * 不通过文件锁读取文件
+	 * 
+	 * @param fileName
+	 * @param isClear
+	 * @return
+	 * @throws Exception
+	 */
+	private static String ReadNoLock(String fileName, boolean isClear) throws Exception {
+		if (!Exists(fileName)) {
+			return null;
+		}
+		synchronized (IOTxtHelper.class) {
+			File file = new File(fileName);
+			if (file.isFile() && file.exists()) {
+				StringBuilder sb = new StringBuilder();
+				InputStreamReader read = null;
+				BufferedReader bufferedReader = null;
+				try {
+					read = new InputStreamReader(new FileInputStream(file), encoding);
+					bufferedReader = new BufferedReader(read);
+					String lineTxt = null;
+					while ((lineTxt = bufferedReader.readLine()) != null) {
+						sb.append(lineTxt + "\r\n");
+					}
+				} catch (Exception e) {
+					throw e;
+				} finally {
+					bufferedReader.close();
+					read.close();
+				}
+				// 判断是否需要清空文件内容
+				if (isClear) {
+					FileWriter fileWriter = new FileWriter(file);
+					fileWriter.write("");
+					fileWriter.flush();
+					fileWriter.close();
+				}
+				return sb.toString();
+			} else {
+				return null;
+			}
+		}
+	}
+
+	/**
+	 * 读取一行信息
+	 * 
+	 * @param fileName
+	 * @return
+	 * @throws Exception
+	 */
+	public static String ReadLine(String fileName) throws Exception {
+		if (!Exists(fileName)) {
+			return null;
+		}
+		synchronized (IOTxtHelper.class) {
+			File file = new File(fileName);
+			if (file.isFile() && file.exists()) {
+				InputStreamReader read = null;
+				BufferedReader bufferedReader = null;
+				try {
+					read = new InputStreamReader(new FileInputStream(file), encoding);
+					bufferedReader = new BufferedReader(read);
+					String lineTxt = bufferedReader.readLine();
+					return lineTxt;
+				} catch (Exception e) {
+					throw e;
+				} finally {
+					bufferedReader.close();
+					read.close();
+				}
+			}
+			return null;
+		}
+	}
+
+	/**
+	 * 写入文件信息
+	 * 
+	 * @param fileName
+	 * @param content
+	 * @return
+	 * @throws Exception
+	 */
+	public static boolean Write(String fileName, String content) throws Exception {
+		File file = new File(fileName);
+		if (!Exists(fileName) || content == null) {
+			return false;
+		}
+		synchronized (IOTxtHelper.class) {
+			FileWriter fileWriter = null;
+			try {
+				fileWriter = new FileWriter(file, true);
+				fileWriter.write(content);
+				fileWriter.flush();
+				fileWriter.close();
+				return true;
+			} catch (IOException e) {
+				throw e;
+			} finally {
+				fileWriter.close();
+			}
+		}
+	}
+
+	/**
+	 * 一行一行写入到文件
+	 * 
+	 * @param fileName
+	 * @param content
+	 * @return
+	 * @throws Exception
+	 */
+	public static boolean WriteLine(String fileName, String content) throws Exception {
+		//return WriteLineNoLock(fileName, content);
+		// return WriteLineByLock(fileName, content);//通过锁实现并发控制
+		AddContentCacheQueue(fileName,content);//通过缓存写入文件
+		return true;
+	}
+	/**
+	 * 消息写入到缓存，之后自动持久化本地
+	 * @param fileName
+	 * @param content
+	 * @throws Exception
+	 */
+	private synchronized static void AddContentCacheQueue(String fileName, String content) throws Exception {
+		//que.put(content);//put(e) take() 方法为阻塞线程方法
+		synchronized (IOTxtHelper.class) {
+			que.add(content);//非阻塞的
+			if (que.size() > cacheLength/2) {
+				// 当内容大于缓存中一半时就持久化到文件
+				SaveCacheQueueToFile(fileName, que.size());
+			}
+		}
+		
+	}
+
+	/**
+	 * 保存缓存中的消息到文件
+	 * 
+	 * @param size 保存消息队列中消息数量 (-1则保存所有信息)
+	 */
+	public   static void SaveCacheQueueToFile(String fileName, int size) {
+		int length = size == -1 ? que.size() : size;
+		StringBuilder sb = new StringBuilder();
+		for (int i = 0; i < length; i++) {
+			sb.append(que.remove());
+			sb.append("\r\n");
+		}
+		if (sb.length() > 0) {
+			boolean saveSuccess = false;
+			while (!saveSuccess) {
+				try {
+					saveSuccess = WriteLineByLock(fileName, sb.toString());
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+
+	/**
+	 * 通过文件锁写入文件
+	 * @param fileName
+	 * @param content
+	 * @return 返回false表示写入文件失败
+	 * @throws Exception
+	 */
+	private static boolean WriteLineByLock(String fileName, String content) throws Exception {
+		File file = new File(fileName);
+		if (!file.exists()) {
+			file.createNewFile();
+		}
+		if (!Exists(fileName) || content == null) {
+			return false;
+		}
+		RandomAccessFile fis = new RandomAccessFile(file, "rw");
+		FileChannel fcin = fis.getChannel();
+		FileLock flin = null;
+		// 1:拿取文件锁
+		int i = 0;
+		while (flin == null) {
+			i++;
+			if (i >= 3) {
+				break;
+			}
+			try {
+				synchronized (IOTxtHelper.class) {
+					flin = fcin.tryLock();
+				}
+			} catch (Exception e) {
+				Thread.sleep(50);
+			}
+			if (flin == null) {
+				Thread.sleep(50);
+			}
+		}
+		// 2:写入文件一行数据
+		if (flin != null) {
+			try {
+				long fileLength = fis.length();// 获取文件的长度即字节数
+				// 将写文件指针移到文件尾 ，否则会写入文件开头覆盖原信息
+				fis.seek(fileLength);
+				fis.write(content.toString().getBytes(encoding));
+				fis.writeBytes("\r\n");// 添加换行符
+			} catch (Exception e) {
+				throw e;
+			} finally {
+				// 3:释放资源
+				flin.release();
+				fcin.close();
+				fis.close();
+				fis = null;
+			}
+			return true;
+		} else {
+			// 释放资源
+			fcin.close();
+			fis.close();
+			fis = null;
+			return false;
+		}
+	}
+
+	/**
+	 * 不通过文件锁写入文件
+	 * 
+	 * @param fileName
+	 * @param content
+	 * @return
+	 * @throws Exception
+	 */
+	private static boolean WriteLineNoLock(String fileName, String content) throws Exception {
+		File file = new File(fileName);
+		if (!Exists(fileName) || content == null) {
+			return false;
+		}
+		synchronized (IOTxtHelper.class) {
+			FileOutputStream fos = null;
+			OutputStreamWriter osw = null;
+			BufferedWriter bw = null;
+			try {
+				fos = new FileOutputStream(file, true);
+				osw = new OutputStreamWriter(fos, encoding);
+				bw = new BufferedWriter(osw);
+				bw.write(content + "\r\n");
+				return true;
+			} catch (IOException e) {
+				throw e;
+			} finally {
+				bw.close();
+				osw.close();
+				fos.close();
+			}
+		}
+	}
+
+}

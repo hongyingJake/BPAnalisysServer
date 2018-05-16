@@ -1,0 +1,48 @@
+package com.bp.bll;
+
+import com.bp.msginterface.*;
+import com.bp.msgfactory.*;
+import com.bp.common.*;
+/**
+* @author zyk
+* @version 锟斤拷锟斤拷时锟戒：2017锟斤拷8锟斤拷7锟斤拷 锟斤拷锟斤拷11:20:20
+* 锟斤拷锟斤拷锟较拷锟斤拷锟较拷锟斤拷锟� 业锟斤拷锟�
+*/
+public class DataMQBLL {
+	/**
+	 * 锟斤拷息锟斤拷锟斤拷实锟斤拷
+	 */
+	public IBaseMQ getbaseMQ()
+	{
+		return MQFactory.GetMQInfo();
+	}
+	/**
+	 * 锟斤拷锟斤拷锟斤拷息锟斤拷锟斤拷息锟斤拷锟斤拷
+	 * 
+	 * @param val
+	 */
+	public void AddMQInfo(String tabName,Object val)
+	{
+		if(BPFlg.getMSMQServerCanUse())
+		{
+			try
+			{
+				getbaseMQ().SaveMQInfo(tabName,val);
+			}
+			catch(Exception e)
+			{
+				e.printStackTrace();
+				BPFlg.setMSMQServerCanUse(false);
+				//锟斤拷录锟斤拷志
+				LogWritter.LogWritterInfo(DataMQBLL.class, LogEnum.Error, "锟斤拷息锟斤拷拥锟斤拷锟较拷锟斤拷锟斤拷斐ｏ拷锟斤拷锟较拷丫锟斤拷志没锟斤拷锟斤拷兀锟斤拷斐ｏ拷锟�"+e.toString());
+				//锟斤拷息锟街久伙拷锟斤拷锟斤拷锟斤拷
+				SaveMQLocal.SaveMQToTxt(val);
+			}
+		}
+		else
+		{
+			//锟斤拷息锟街久伙拷锟斤拷锟斤拷锟斤拷
+			SaveMQLocal.SaveMQToTxt(val);
+		}
+	}
+}

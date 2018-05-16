@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>压力测试成功页面</title>
+<script type="text/javascript">
+function getDictionaryParams(url) {
+    var dictionary = {};//定义一个字典
+    if (url.indexOf('?') != -1) {
+        url = url.substring(url.lastIndexOf('?') + 1);//取出参数的信息
+        url = url.split('&');
+        for (var i = 0; i < url.length; i++) {
+            var keyValue = url[i].split('=');
+         dictionary[keyValue[0]] = unescape(keyValue[1]);//为字典中的值赋值
+        }
+    }
+    return dictionary;
+}
+window.onload=function(){
+	document.getElementById('Msg').innerHTML=getDictionaryParams(window.location.href)["Msg"];
+};
+
+</script>
+</head>
+<body>
+	压力测试成功页面,传递消息为：<span id="Msg"></span>
+</body>
+</html>

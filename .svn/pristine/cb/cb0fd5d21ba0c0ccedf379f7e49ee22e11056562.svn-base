@@ -1,0 +1,253 @@
+﻿/// <reference path="PageJsonShare.js" />
+/// <reference path="jquery-1.8.3.js" />
+/// <reference path="BPCommon.js" />
+//注册埋点键值对说明
+//请求服务地址（键集合相关操作地址）
+var serverUrl = "/BPPoint/BPSubPoints?n=" + new Date().valueOf();
+// 是否已注册埋点key
+var serverHaveKeyUrl = "HaveBPPoint/";
+//禁止修改的埋点Key
+var borbidBPKeys=['defaultFunClickCount','NoBuryPointsKey'];
+$(function() {
+	// 设置服务请求地址
+	serverUrl = $('#ContextPath').val() + serverUrl;
+	// 为保存按钮注册事件
+	$('#btnKeySave').click(function() {
+		// 发送异步请求保存键值对
+		SaveKeyValue();
+		// 发送成功则刷新键值对
+
+	});
+	// 键值判断是否存在
+	$('#txtKeyFlg').blur(function() {
+		CheckBPIsHave();
+	});
+	// 注册埋点时验证埋点标识符是否存在
+	$('#BPFlg').blur(function() {
+		RegisterCheckFlg();
+	});
+	// 页面加载后，加载埋点键值信息
+	GetAllKeys();
+	// 设置页面默认信息
+	SetDefaultInfo();
+
+});
+
+// 注册埋点时验证埋点标识符是否存在
+function RegisterCheckFlg() {
+	var bpflg=$('#BPFlg').val();
+	if(bpflg==''){
+		return false;
+	}
+	else if(!CheckInfoISCharsAndNum(bpflg)){
+		 alert('埋点标识符必须由字符、数字或下划线组成！');
+         $('#BPFlg').val('');
+		return false;
+	}
+	else {
+		// 发送请求
+		$.ajax({
+			type : "get",
+			cache : false,
+			url : serverHaveKeyUrl + $('#BPFlg').val() + "?n="
+					+ new Date().valueOf(),
+			data : null,
+			dataType : "json",
+			success : function(data) {
+				if (data.haveBPPoint == "1") {
+					$('#BPFlg').val('');
+					alert("当前埋点标识符已注册，请重新写埋点标识符！");
+				}
+			},
+			error : function() {
+				alert('error');
+			}
+		});
+	}
+}
+// 设置页面默认信息
+function SetDefaultInfo() {
+	// 判断埋点标识符是否可修改
+	// 判断是否已存在埋点信息
+	if ($('#BPId').val() != '') {
+		$('#BPFlg').attr('disabled', true);
+		//如果是快速注册埋点则隐藏保存按钮(快速注册埋点只查看键值对集合信息)
+		if(borbidBPKeys.contains($('#BPFlg').val())){
+			$('#btnKeySave').hide();
+		}
+	}
+
+}
+// 获取埋点所有键值信息
+function GetAllKeys() {
+	// 获取数据
+	var paramsData = {
+		BPId : $('#BPId').val(),
+		Operation : "GetAllKeys"
+	};
+	if (paramsData.BPId != '') {
+		// 发送请求
+		$.ajax({
+			type : "POST",
+			cache : false,
+			url : serverUrl,
+			data : paramsData,
+			dataType : "json",
+			success : function(data) {
+				if (data.BPSubPoints == null) {
+					alert("未获取到信息");
+				} else {
+					// 刷新键值对信息
+					ReflechKeyValues(data.BPSubPoints);
+				}
+			},
+			error : function() {
+				alert('error');
+			}
+		});
+	}
+}
+
+// 删除键
+function DeleteKey(keyFlg) {
+	if (confirm("确定要删除键值吗？")) {
+		// 获取数据
+		var paramsData = {
+			BPId : $('#BPId').val(),
+			KeyFlg : keyFlg,
+			Operation : "DeleteKeyByKeyFlg"
+		};
+		if (paramsData.BPId != '' && paramsData.KeyFlg != '') {
+			// 发送请求
+			$.ajax({
+				type : "POST",
+				cache : false,
+				url : serverUrl,
+				data : paramsData,
+				dataType : "json",
+				success : function(data) {
+					if(data.BPSpeedInfo!=null){
+						alert(data.BPSpeedInfo);
+						return;
+					}
+					if (data.BPSubPoints != null) {
+						ReflechKeyValues(data.BPSubPoints);
+					}
+				},
+				error : function() {
+					alert('error');
+				}
+			});
+		}
+	}
+}
+
+// 刷新键值对信息
+function ReflechKeyValues(keyValues) {
+	var bpFlg=$('#BPFlg').val();
+	var trs = "";
+	$('#tbBodyKeys').html(trs);
+	for ( var key in keyValues) {
+		// alert(key + ":" + data.Msg[key]);
+		// 键值新键值信息
+		trs += "<tr><td>"
+				+ key
+				+ "</td><td>"
+				+ keyValues[key]
+				+ "</td>" ;
+		//快速注册埋点不允许删除键值信息
+		if(!borbidBPKeys.contains(bpFlg)){
+			trs+="<td><input type='button' value='删除' onClick='DeleteKey(\""
+				+ key + "\");' /></td>"
+		}
+		trs+="</tr>";
+	}
+	if (trs != "") {
+		$('#tbBodyKeys').html(trs);
+	}
+	// 设置JSON展示样式
+	var arrayKeys = [];
+	arrayKeys.push(keyValues);
+	$('#preJson').html(JSONToHtmlString(arrayKeys));
+	// 设置表格行样式
+	$('#tbBodyKeys tr:even').css('backgroundColor', '#FFF200');
+}
+
+// 判断埋点中键值对是否存在键
+function CheckBPIsHave() {
+	// 获取数据
+	var paramsData = {
+		BPId : $('#BPId').val(),
+		KeyFlg : $('#txtKeyFlg').val(),
+		Operation : "CheckBPIsHave"
+	};
+	if (paramsData.BPId != '' && paramsData.KeyFlg != '') {
+		// 校验键名称是否系统自带的
+		if (paramsData.KeyFlg.toLowerCase()  == "servertime") {
+			$('#txtKeyFlg').val('');
+			alert("此键名为系统键名，禁止注册！");
+		} else if (paramsData.KeyFlg.toLowerCase()  == "serverip") {
+			$('#txtKeyFlg').val('');
+			alert("此键名为系统键名，禁止注册！");
+		}
+		else if (paramsData.KeyFlg.toLowerCase()  == "url") {
+			alert("不注册此键名系统可自动添加，来源请求头Referer，你确定要注册？");
+		}
+		else if (paramsData.KeyFlg.toLowerCase()  == "happendatetime") {
+			alert("不注册此键名系统可自动添加，表示事件发生时间，你确定要注册？");
+		}
+		else if (paramsData.KeyFlg.toLowerCase()  == "mtbpaccountid") {
+			$('#txtKeyFlg').val('');
+			alert("此键名为系统键名(客户端唯一标识)，禁止注册！");
+		}
+		// 发送请求
+		$.ajax({
+			type : "POST",
+			cache : false,
+			url : serverUrl,
+			data : paramsData,
+			dataType : "json",
+			success : function(data) {
+				if (data.HaveBPSubPoint == "1") {
+					$('#txtKeyFlg').val('');
+					alert("当前埋点键名称已存在，请重新输入！");
+				}
+			},
+			error : function() {
+				alert('error');
+			}
+		});
+	}
+}
+
+// 异步请求保存键值对
+function SaveKeyValue() {
+	// 获取数据
+	var paramsData = {
+		BPId : $('#BPId').val(),
+		KeyFlg : $('#txtKeyFlg').val(),
+		KeyInfo : $('#txtKeyInfo').val(),
+		Operation : "RegisterBP"
+	};
+	if (paramsData.BPId != '' && paramsData.KeyFlg != '') {
+		// 发送请求
+		$.ajax({
+			type : "POST",
+			cache : false,
+			url : serverUrl,
+			data : paramsData,
+			dataType : "json",
+			success : function(data) {
+				// 刷新键值对
+				if (data.BPSubPoints != null) {
+					$('#txtKeyFlg').val('');
+					$('#txtKeyInfo').val('');
+					ReflechKeyValues(data.BPSubPoints);
+				}
+			},
+			error : function() {
+				alert('error');
+			}
+		});
+	}
+}

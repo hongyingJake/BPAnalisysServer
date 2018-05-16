@@ -1,0 +1,82 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+    pageEncoding="UTF-8"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width" />
+<title>Left</title>
+  <style type="text/css">
+        .ullicss {
+            height: 30px;
+        }
+
+            .ullicss ul {
+                list-style: none;
+            }
+
+            .ullicss li {
+                float: left;
+                width: 100px;
+                margin-left: 3px;
+                line-height: 30px;
+            }
+
+            .ullicss a:link {
+                color: pink;
+                font-weight: bold;
+                text-decoration: none;
+                background: green;
+            }
+
+            .ullicss a:visited {
+                color: pink;
+                font-weight: bold;
+                text-decoration: none;
+                background: green;
+            }
+
+            .ullicss a:hover {
+                color: green;
+                font-weight: bold;
+                text-decoration: none;
+                background: yellow;
+            }
+
+            .ullicss a {
+                display: block;
+                text-align: center;
+                height: 30px;
+            }
+    </style>
+</head>
+<body>
+    <div class="ullicss">
+        <ul>
+            <li>
+                <a target="mainFrame" href="javascript:void(0)">埋点管理</a>
+                <ul>
+                    <li><a href="${pageContext.request.contextPath}/BPPoint/Index/1" target="mainFrame">埋点查询</a></li>
+                    <li><a href="${pageContext.request.contextPath}/BPPoint/RegisterBP" target="mainFrame">埋点注册</a></li>
+                    <li><a href="${pageContext.request.contextPath}/BPClick/Index/1" target="mainFrame">快速埋点</a></li>
+                    <li><a href="${pageContext.request.contextPath}/BPNoBury/Index/1" target="mainFrame">无埋点</a></li>
+                </ul>
+            </li>
+             <li>
+                <a target="mainFrame" href="javascript:void(0)">系统帮助</a>
+                <ul>
+                <li><a href="${pageContext.request.contextPath}/BPHelper/Index#getMTBPBB" target="mainFrame">埋点必备</a></li>
+                    <li><a href="${pageContext.request.contextPath}/BPHelper/Index#getMTBPJS" target="mainFrame">引入埋点JS包</a></li>
+                    <li><a href="${pageContext.request.contextPath}/BPHelper/Index#getmt" target="mainFrame">JSON埋点</a></li>
+                    <li><a href="${pageContext.request.contextPath}/BPHelper/Index#getmtpl" target="mainFrame">批量上传</a></li>
+                    <li><a href="${pageContext.request.contextPath}/BPHelper/Index#getAndPost" target="mainFrame">GET和POST</a></li>
+                    <li><a href="${pageContext.request.contextPath}/BPHelper/Index#customProp" target="mainFrame">自定义属性</a></li>
+                    <li><a href="${pageContext.request.contextPath}/BPHelper/Index#speedBp" target="mainFrame">快速埋点</a></li>
+                    <li><a href="${pageContext.request.contextPath}/BPHelper/Index#noBuryBp" target="mainFrame">无埋点</a></li>
+                    <li><a href="${pageContext.request.contextPath}/BPHelper/Index#resultState" target="mainFrame">结果状态</a></li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+</body>
+</html>

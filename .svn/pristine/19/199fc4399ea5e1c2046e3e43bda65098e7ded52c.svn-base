@@ -1,0 +1,48 @@
+package com.bp.bll;
+
+import com.bp.msginterface.*;
+import com.bp.msgfactory.*;
+import com.bp.common.*;
+/**
+* @author zyk
+* @version 埋点服务存储消息到消息队列业务层
+*/
+public class DataMQBLL {
+	/**
+	 * 获取消息队列对象
+	 */
+	public IBaseMQ getbaseMQ()
+	{
+		return MQFactory.GetMQInfo();
+	}
+	/**
+	 * 添加消息到消息队列中
+	 * 
+	 * @param val
+	 */
+	public void AddMQInfo(String tabName,Object val)
+	{
+		//通过判断消息队列服务是否可用，可用则保存到消息队列服务器中，否则保存到本地文件
+		if(BPFlg.getMSMQServerCanUse())
+		{
+			try
+			{
+				getbaseMQ().SaveMQInfo(tabName,val);
+			}
+			catch(Exception e)
+			{
+				e.printStackTrace();
+				BPFlg.setMSMQServerCanUse(false);
+				//向消息队列发生消息失败，记录日志
+				LogWritter.LogWritterInfo(DataMQBLL.class, LogEnum.Error, "向消息队列服务器中发送消息失败，异常："+e.toString());
+				//消息保存到本地，消息队列服务启动后重新发布消息
+				SaveMQLocal.SaveMQToTxt(val);
+			}
+		}
+		else
+		{
+			//消息保存到本地
+			SaveMQLocal.SaveMQToTxt(val);
+		}
+	}
+}

@@ -1,0 +1,9 @@
+package com.bp.serverinterface;
+
+import javax.jws.WebService;
+
+
+@WebService
+public interface IBPServer {
+	public String Get(String key,String content);
+}

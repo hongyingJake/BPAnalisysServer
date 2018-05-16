@@ -1,0 +1,199 @@
+package com.bp;
+
+import java.util.Date;
+import java.util.List;
+import java.util.UUID;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.view.RedirectView;
+
+import com.bp.bll.*;
+import com.bp.common.*;
+import com.bp.models.*;
+/**
+* @author zyk
+* @version 创建时间：2017年8月7日 下午5:54:38
+* 埋点注册控制器    类说明
+*/
+@Controller
+public class BPRegistController {
+	private BPRegistDAL BPRegist;
+	public void setBPRegist(BPRegistDAL BPRegist) {  
+        this.BPRegist = BPRegist;  
+    }  
+    public BPRegistDAL getBPRegist() {  
+        return BPRegist;  
+    } 
+    /**
+     * 埋点系统主页面
+     * @param name
+     * @return
+     */
+	@RequestMapping("/BPIndex/Index")
+	public ModelAndView BPIndexIndex(@RequestParam(value = "name", required = false, defaultValue = "Spring") String name) {
+        ModelAndView mv = new ModelAndView("BPIndex/Index");//指定视图
+        //向视图中添加所要展示或使用的内容，将在页面中使用
+//        mv.addObject("message", "jake");
+//        mv.addObject("name", name);
+        return mv;
+    }
+	
+	/**
+	 * 框架左侧导航条
+	 */
+	@RequestMapping(value="/BPIndex/Left", method = RequestMethod.GET)
+	public ModelAndView BPIndexLeft() {
+        ModelAndView mv = new ModelAndView("/BPIndex/Left");
+        return mv;
+    }
+	
+	/**
+	 * 框架主页面
+	 */
+	@RequestMapping(value="/BPIndex/MainPage", method = RequestMethod.GET)
+	public ModelAndView BPIndexMainPage() {
+        ModelAndView mv = new ModelAndView("/BPIndex/MainPage");
+        return mv;
+    }
+	
+	/**
+	 * 框架分隔条
+	 */
+	@RequestMapping(value="/BPIndex/Switch", method = RequestMethod.GET)
+	public ModelAndView BPIndexSwitch() {
+        ModelAndView mv = new ModelAndView("/BPIndex/Switch");
+        return mv;
+    }
+	
+	/**
+	 * 框架Top页面
+	 */
+	@RequestMapping(value="/BPIndex/Top", method = RequestMethod.GET)
+	public ModelAndView BPIndexTop(HttpServletRequest request) {
+        ModelAndView mv = new ModelAndView("/BPIndex/Top");
+        Object obj=request.getSession().getAttribute("UserLogin");
+        if(obj!=null)
+        {
+        	BPSystemUserModel model=(BPSystemUserModel)obj;
+        	mv.addObject("UserName", model.UserName);
+        }
+        return mv;
+    }
+	
+	/**
+	 * 埋点查询列表页面
+	 */
+	@RequestMapping(value="/BPPoint/Index", method = RequestMethod.GET)
+	public ModelAndView BPPointIndex() {
+        ModelAndView mv = new ModelAndView("/BPPoint/Index");
+        return mv;
+    }
+	/**
+	 * 埋点注册页面
+	 */
+	@RequestMapping(value="/BPPoint/RegisterBP", method = RequestMethod.GET)
+	public ModelAndView BPPointRegisterBP() {
+        ModelAndView mv = new ModelAndView("/BPPoint/RegisterBP");
+        return mv;
+    }
+	
+	
+	/**
+	 * 用户登录页面
+	 * @return
+	 */
+	@RequestMapping(value="/BPRegist/Login", method = RequestMethod.GET)
+	public ModelAndView BPRegistLogin(HttpServletRequest request) {
+        ModelAndView mv = new ModelAndView("/BPRegist/Login");
+        CookieUtility cookie=new CookieUtility();
+        mv.addObject("UserLoginName", cookie.getCookieByName(request, "UserLoginName"));
+        return mv;
+    }
+	/**
+	 * 用户登录Action
+	 * @param request
+	 * @return
+	 */
+	@RequestMapping(value="/BPRegist/Login", method = RequestMethod.POST)
+	public ModelAndView BPRegistLogin(HttpServletRequest request,HttpServletResponse response) {
+        String UserLoginName=request.getParameter("UserLoginName").trim();
+        String UserLoginPwd=Md5Utils.MD5Encode(request.getParameter("UserLoginPwd"), "UTF-8", true);
+        String IsRememberMe=request.getParameter("IsRememberMe");
+        BPSystemUserModel model=BPRegist.Login(UserLoginName, UserLoginPwd);
+        if(model!=null)
+        {
+        	//1:判断是否记录我，记录则保存cookie，否则清空cookie
+        	CookieUtility cookie=new CookieUtility();
+            if(IsRememberMe!=null)
+            {
+            	//记录
+            	cookie.addCookie(response, "UserLoginName", model.UserLoginName, 60*60*24*7);//保存一周
+            }
+            else
+            {
+            	cookie.deleteCookie(request, response, "UserLoginName");
+            }
+        	//2:保存到Session
+        	request.getSession().setAttribute("UserLogin", model);
+        	//3：调整到主页面
+        	return new ModelAndView("redirect:/BPIndex/Index");
+        }
+        else
+        {
+        	ModelAndView mv = new ModelAndView("BPRegist/Login");
+        	mv.addObject("loginInfo", "登录名称或密码错误，请重新登录！");
+        	return mv;
+        }
+    }
+	/**
+	 * 用户注册页面
+	 * @return
+	 */
+	@RequestMapping("/BPRegist/Register")
+	public ModelAndView BPRegistRegister() {
+        ModelAndView mv = new ModelAndView("BPRegist/Register");
+        return mv;
+    }
+	/**
+	 * 用户注册Action
+	 * @return
+	 */
+	@RequestMapping(value="BPRegist/Successed", method = RequestMethod.POST)
+	public ModelAndView BPRegistSuccessed(HttpServletRequest request) {
+		BPSystemUserModel model=new BPSystemUserModel();
+		ModelAndView mv = new ModelAndView("BPRegist/BPRegister");
+        //初始化其他属性信息
+		model.UserId=UUID.randomUUID().toString();
+		model.UserLoginName=request.getParameter("UserLoginName").trim();
+		model.UserLoginPwd=Md5Utils.MD5Encode(request.getParameter("UserLoginPwd"), "UTF-8", true);
+		model.UserName=request.getParameter("UserName").trim();
+		model.UserCompanyName=request.getParameter("UserCompanyName").trim();
+		model.UserPhone=request.getParameter("UserPhone").trim();
+		model.Demo=request.getParameter("Demo").trim();
+		model.RegisterDate=new Date();
+		model.IsValid=1;//1：有效 0：无效
+		boolean isSuccess= BPRegist.AddSystemUser(model);
+		if(isSuccess)
+		{
+			//跳转到登录页面
+			return new ModelAndView(new RedirectView("Login"));   
+			//重定向方法
+			//return "redirect:/ toList "; 
+			//return new ModelAndView("redirect:/toList");
+		}else
+		{
+			mv.addObject("errMsg", "用户注册失败，请联系管理员！");
+			return mv;
+		}
+        
+    }
+}

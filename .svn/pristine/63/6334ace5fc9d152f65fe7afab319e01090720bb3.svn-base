@@ -1,0 +1,44 @@
+package com.bp.common;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * 日志工具类 log4j
+ * 
+ * @author aaa
+ *
+ */
+public class LogWritter {
+	/**
+	 * 写入日志 
+	 * 
+	 * @param clazz
+	 *            类型
+	 * @param logType
+	 *            日志类型
+	 * @param msg
+	 */
+	public static void LogWritterInfo(Class clazz, LogEnum logType, String msg) {
+		// 输出日志类
+		Logger logger = LoggerFactory.getLogger(clazz);
+		switch (logType) {
+		case Error:
+			logger.error(msg);
+			break;
+		case Warn:
+			logger.warn(msg);
+			break;
+		case Info:
+			logger.info(msg);
+			break;
+		case Debug:
+			logger.debug(msg);
+			break;
+		default:
+			logger.info(msg);
+			break;
+		}
+
+	}
+}

@@ -1,0 +1,156 @@
+package com.bp.common;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
+import net.sf.json.JsonConfig;
+
+/**
+ * JSON工具类
+ * 
+ * @author aaa
+ *
+ */
+public class JsonUtility {
+	
+	
+
+	/**
+	 * 判断JSON字符串是否为JSON格式
+	 * 
+	 * @param jsonStr
+	 * @return
+	 */
+	public static boolean IsJSON(String jsonStr) {
+		// 判断是否是JSON数组
+		if (jsonStr.charAt(0) == '[') {
+			String strSum = jsonStr.substring(1, jsonStr.length() - 2);
+			String[] tempSum = strSum.split("},");
+			boolean isJson = true;
+			for (int i = 0; i < tempSum.length; i++) {
+				if (!IsSingleJson(tempSum[i] + "}")) {
+					isJson = false;
+					break;
+				}
+			}
+			return isJson;
+		} else {
+			return IsSingleJson(jsonStr);
+		}
+
+	}
+
+	/**
+	 * 判断一个字符串是否为单一JSON对象
+	 * 
+	 * @param json
+	 *            JSON字符串
+	 * @return
+	 */
+	private static boolean IsSingleJson(String json) {
+		try {
+			JSONObject jsonObject = JSONObject.fromObject(json);
+			return true;
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
+	/**
+	 * 把JSON对象转换成Map<String, List<Map<String, String>>>
+	 * 
+	 * @param key
+	 *            埋点注册Key
+	 * @param jsonContent
+	 *            埋点信息 JSON字符串(支持数组)
+	 * @return
+	 */
+	public static Map<String, List<Map<String, String>>> JSON2Map(String key, String jsonContent) throws Exception {
+		Map<String, List<Map<String, String>>> map = new HashMap<String, List<Map<String, String>>>();
+		List<Map<String, String>> listM = new ArrayList<Map<String, String>>();
+		try {
+			//0:JSON对象在序列化的时候有时可能有换行符，把换行符替换空字符串
+			jsonContent = jsonContent.replaceAll("[\\t\\n\\r]", "");
+			// 判断是否是JSON数组
+			if (jsonContent.charAt(0) == '[') {
+				String strSum = jsonContent.substring(1, jsonContent.length() - 2);
+				String[] tempSum = strSum.split("},");
+				for (int i = 0; i < tempSum.length; i++) {
+					Map<String, String> subMap = new HashMap<String, String>();
+					subMap = SingleJson2Map(tempSum[i] + "}");
+					listM.add(subMap);
+				}
+			} else {
+				Map<String, String> mapContent = new HashMap<String, String>();
+				mapContent = SingleJson2Map(jsonContent);
+				listM.add(mapContent);
+			}
+		} catch (Exception e) {
+			throw e;
+		}
+		map.put(key, listM);
+		return map;
+	}
+
+	/**
+	 * 单一JSON对象转换成Map
+	 * 
+	 * @param jsonContent
+	 *            JSON格式字符串
+	 * @return
+	 */
+	private static Map<String, String> SingleJson2Map(String jsonContent) {
+		Map<String, String> mapContent = new HashMap<String, String>();
+		JSONObject jsonO = JSONObject.fromObject(jsonContent);
+		// 遍历key，转化成map
+		Iterator<String> keys = jsonO.keys();
+		while (keys.hasNext()) {
+			String k = keys.next();
+			String v = jsonO.getString(k);
+
+			mapContent.put(k, v);
+		}
+		return mapContent;
+	}
+	/**
+	 * 对象转换成JSON字符串
+	 * @param obj
+	 * @return
+	 */
+	public static String ObjToJSONStr(Object obj)
+	{
+		JSONObject jsonO=JSONObject.fromObject(obj);
+		return jsonO.toString();
+	}
+	/**
+	 * Map<String, List<Map<String, String>>>  字符串转成Map对象
+	 * @param mapJson Map<String, List<Map<String, String>>> 对象转化成的字符串
+	 * @return
+	 */
+	public static Map<String, List<Map<String, String>>> JSONStrToObj(String mapJson) throws Exception
+	{
+		//{"keyClickNumber":[{"BrowserType":"Firefox_54.0","elementID":"2017042001"}]}
+		String strSum = mapJson.substring(1, mapJson.length() - 2);
+		String[] sum=strSum.split(":\\[");
+		if(sum!=null&&sum.length==2)
+		{
+			try
+			{
+				return JSON2Map(sum[0].replaceAll("\"", ""),sum[1]);
+			}
+			catch(Exception e)
+			{
+				throw e;
+			}
+		}
+		else
+		{
+			return null;
+		}
+	}
+}

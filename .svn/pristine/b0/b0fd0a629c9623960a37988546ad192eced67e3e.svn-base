@@ -1,0 +1,287 @@
+package com.bp.common;
+
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import com.bp.bll.BPFlg;
+import com.bp.bll.BPRegistDAL;
+
+/**
+ * 数据校验类
+ * 
+ * @author aaa
+ *
+ */
+public class DataValid {
+	/**
+	 * 是否开启校验
+	 */
+	private static String OpenValid = null;
+	/**
+	 * 校验模式 1:只验证埋点键值数量 2：验证埋点键值名称一一对应
+	 */
+	private static String ValidType = null;
+
+	// 静态代码块，声明类时执行
+	static {
+		ConfigurationManager manager = new ConfigurationManager();
+		OpenValid = manager.ReadConfiByNodeName("OpenValid");
+		ValidType = manager.ReadConfiByNodeName("ValidType").equals("") ? "1"
+				: manager.ReadConfiByNodeName("ValidType");
+	}
+
+	/**
+	 * JSON转map对象后进行校验
+	 * 
+	 * @param jsonMap
+	 *            json格式转换成Map对象
+	 * @param OutMsg
+	 *            验证错误问题说明
+	 * @return
+	 */
+	public static boolean IsValidFormByJsonObj(Map<String, List<Map<String, String>>> jsonMap, final String[] OutMsg) {
+		// 1：判断是否开启校验
+		if (!OpenValid.equals("1")) {
+			return true;
+		}
+		// 2:同埋点注册信息进行校验
+		// 2.1:校验埋点key是否注册
+		boolean isValid = true;// 是否验证成功
+		for (String k : jsonMap.keySet()) {
+			StringBuilder strInfo = new StringBuilder();
+			List<Map<String, String>> lst = jsonMap.get(k);
+			// a1:进行快速埋点校验(校验快速埋点前2个参数)
+			if (k.equals(BPFlg.BPSpeedFlg)) {
+				isValid = BPSpeedValid(lst, strInfo);
+			} else if (k.equals(BPFlg.NoBuryFlg)) {
+				// a2:进行无埋点校验(校验埋点的第一个参数)
+				isValid = BPNoBuryValid(lst, strInfo);
+			} else {
+				// a3:进行一般注册的埋点校验
+				// 缓存中获取当前埋点键值信息
+				Map<String, String> kvs = BPFlg.GetBpKValues(k);
+				// 2.1校验埋点是否未注册
+				if (kvs.keySet().size() == 0) {
+					strInfo.append("未注册当前埋点信息或埋点键值对信息为空！");
+					isValid = false;
+					// 返回客户端信息
+					OutMsg[0] = strInfo.toString();
+					break;
+				}
+				// 2.2判断埋点键值对信息是否一致
+				for (Map<String, String> map : lst) {
+					// 2.2:首先验证键值数量是否一致；如不一致则验证哪个键有问题
+					int mSize = map.keySet().size();
+					int kSize = kvs.keySet().size();
+					// 排除客户端提交不需要校验的键
+					for (String ck : map.keySet()) {
+						if (BPFlg.NoValidateKeys.contains(ck)) {
+							mSize--;
+						}
+					}
+					if (mSize == kSize) {
+						if (ValidType.equals("1")) {
+							isValid = true;
+							continue;
+						} else {
+							// 进行埋点键值对一一校验
+							isValid = ValidMapKey(kvs, map, strInfo);
+						}
+					} else {
+						// 进一步验证哪些键缺少
+						strInfo = ValidMap(kvs, map);
+						isValid = false;
+					}
+					if (!isValid) {
+						break;
+					}
+				}
+			}
+
+			if (!isValid) {
+				// 返回客户端信息
+				OutMsg[0] = strInfo.toString();
+				break;
+			}
+		}
+		return isValid;
+	}
+
+	/**
+	 * 快速埋点校验
+	 * 
+	 * @param parsValue
+	 *            快速埋点的键值信息
+	 * @param strInfo
+	 *            校验失败返回信息说明
+	 * @return
+	 */
+	public static boolean BPSpeedValid(List<Map<String, String>> parsValue, final StringBuilder strInfo) {
+		if (parsValue == null) {
+			strInfo.append("未找到快速埋点的键集合信息！");
+			return false;
+		}
+		boolean isValue = true;
+		for (Map<String, String> p : parsValue) {
+			// 获取第一个参数
+			String parms1 = p.get("extendParams01");
+			String parms2 = p.get("extendParams02");
+			// String parms3=p.get("extendParams03");
+			// 从缓存中获取其他键集合信息
+			List<String> others = BPFlg.GetBPSpeedOthKeys(parms1);
+			if (others != null) {
+				if (others.size() > 0) {
+					// 判断其他参数，为空则不判断。不为空但是未注册则校验失败
+					if (!parms2.equals("")) {
+						if (!others.contains(parms2)) {
+							strInfo.append(String.format("快速埋点中未注册参数2为：%s 的埋点", parms2));
+							isValue = false;
+							break;
+						}
+					}
+					// if(!parms3.equals("")){
+					// if(!others.contains(parms3)){
+					// strInfo.append(String.format("快速埋点中未注册参数3为：%s 的埋点",
+					// parms3));
+					// isValue=false;
+					// break;
+					// }
+					// }
+				} else {
+					strInfo.append(String.format("快速埋点中未注册参数1为：%s 的埋点", parms1));
+					// 从缓存中移除
+					BPFlg.RemoveBPSpeedFromCache(parms1);
+					isValue = false;
+					break;
+				}
+			} else {
+				strInfo.append(String.format("快速埋点中未注册参数1为：%s 的埋点", parms1));
+				isValue = false;
+				break;
+			}
+		}
+		return isValue;
+	}
+
+	/**
+	 * 无埋点校验
+	 * 
+	 * @param parsValue
+	 *            上传的键集合信息
+	 * @param strInfo
+	 *            校验失败提示信息
+	 * @return
+	 */
+	public static boolean BPNoBuryValid(List<Map<String, String>> parsValue, final StringBuilder strInfo) {
+		if (parsValue == null) {
+			strInfo.append("未找到快速埋点的键集合信息！");
+			return false;
+		}
+		// 校验逻辑：只进行校验无埋点的键标识符是否注册
+		boolean isValue = true;
+		for (Map<String, String> p : parsValue) {
+			// 获取无埋点键标识符
+			String NoBuryKey = p.get("NoBuryKey");
+			// 查看缓存中是否包含已经注册的无埋点键标识符
+			if (!BPFlg.BPNoBuryKeys.contains(NoBuryKey)) {
+				isValue = false;
+				strInfo.append(String.format("无埋点中未注册埋点标识符为:%s 的埋点", NoBuryKey));
+			}
+		}
+		return isValue;
+	}
+
+	/**
+	 * 验证埋点键集合是否一致
+	 * 
+	 * @param RMap
+	 *            注册的埋点键集合
+	 * @param CMap
+	 *            客户端上传的埋点键集合
+	 * @param sb
+	 *            返回相关信息
+	 * @return
+	 */
+	public static boolean ValidMapKey(Map<String, String> RMap, Map<String, String> CMap, StringBuilder sb) {
+		boolean validSuccess = true;
+		sb.append("埋点已注册键，客户端未提供：");
+		for (String k : RMap.keySet()) {
+			if (!CMap.containsKey(k)) {
+				sb.append(k + ",");
+				validSuccess = false;
+			}
+		}
+		return validSuccess;
+	}
+
+	/**
+	 * 两个Map进行校验
+	 * 
+	 * @param RMap
+	 *            埋点注册的Map
+	 * @param CMap
+	 *            客户端上传的Map
+	 * @return
+	 */
+	public static StringBuilder ValidMap(Map<String, String> RMap, Map<String, String> CMap) {
+		StringBuilder sb = new StringBuilder();
+		int rSize = RMap.keySet().size();
+		int cSize = CMap.keySet().size();
+		// 排除客户端不需要校验的键
+		for (String k : CMap.keySet()) {
+			if (BPFlg.NoValidateKeys.contains(k)) {
+				cSize--;
+			}
+		}
+		if (rSize > cSize) {
+			sb.append("当前埋点已注册键，但是客户端未提供：");
+			for (String k : RMap.keySet()) {
+				if (!CMap.containsKey(k)) {
+					sb.append(k + ",");
+				}
+			}
+		} else {
+			sb.append("客户端提供了当前埋点中未注册的键：");
+			for (String k : CMap.keySet()) {
+				if (BPFlg.NoValidateKeys.contains(k)) {
+					continue;
+				}
+				if (!RMap.containsKey(k)) {
+					sb.append(k + ",");
+				}
+			}
+		}
+		return sb;
+	}
+
+	/**
+	 * 校验埋点信息是否符合
+	 * 
+	 * @param key
+	 *            键
+	 * @param val
+	 *            内容
+	 * @param OutMsg
+	 *            输出信息 取数组第一个值
+	 * @return
+	 */
+	public static boolean IsValidFormBaseModel(String key, String val, String[] OutMsg) {
+		if (OpenValid == null) {
+			ConfigurationManager manager = new ConfigurationManager();
+			OpenValid = manager.ReadConfiByNodeName("OpenValid");
+		}
+		OutMsg = new String[1];
+		// 判断是否开启校验
+		if (!OpenValid.equals("1")) {
+			return true;
+		}
+		// 判断是否可以转换成JSON格式
+		if (JsonUtility.IsJSON(val)) {
+			return true;
+		} else {
+			OutMsg[0] = "埋点内容信息转换JSON格式失败！";
+			return false;
+		}
+	}
+}

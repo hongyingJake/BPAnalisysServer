@@ -1,0 +1,206 @@
+package com.bp;
+
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.net.UnknownHostException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+
+import javax.servlet.ServletContext;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.web.context.ContextLoader;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.context.request.ServletWebRequest;
+
+import com.bp.bll.BPFlg;
+import com.bp.common.LogEnum;
+import com.bp.common.LogWritter;
+
+/**
+ * Web server 工具类
+ * 
+ * @author aaa
+ *
+ */
+public class ServerCommon {
+	
+	/**
+	 * JSON对象中进行属性补录
+	 * @param mapMain
+	 * @return
+	 */
+	public Map<String, List<Map<String, String>>> AttributeAddByJsonObj(Map<String, List<Map<String, String>>> mapMain)
+	{
+		// 在非Controler类中获取上下文方法
+		HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes())
+						.getRequest();
+		for(String key:mapMain.keySet())
+		{
+			List<Map<String, String>> lst= mapMain.get(key);
+			for(Map<String, String> map:lst)
+			{
+				//1:属性补录
+				SimpleDateFormat ServerTimeSdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");//获取当前时间
+				//1.1:匹配正确则需设置部分属性，URL和HappenDateTime
+				if(!map.containsKey("URL"))
+				{
+					// 获取http header信息
+					String clientUri = request.getHeader("referer");
+					if(clientUri==null||clientUri.length()<=0){
+						clientUri="";
+					}
+					map.put("URL", clientUri);
+				}
+				if(!map.containsKey("HappenDateTime"))
+				{
+					String HappenDateTime = ServerTimeSdf.format(new Date());
+					map.put("HappenDateTime", HappenDateTime);
+				}
+				//2:添加服务器的系统属性
+				//2.1:添加服务器时间
+				String ServerTime = ServerTimeSdf.format(new Date());
+				map.put("ServerTime", ServerTime);
+				//2.2:添加服务器IP
+				String localIp=getLocalIP();//获取本地IP地址
+				map.put("ServerIP", localIp);
+			}
+		}
+		return mapMain;
+	}
+	/**
+	 * 数组集合JSON对象属性补充
+	 * @param val
+	 * @return
+	 */
+	public String AttributeSupp(String val)
+	{
+		//0:JSON对象在序列化的时候有时可能有换行符，把换行符替换空字符串
+        val = val.replaceAll("[\\t\\n\\r]", "");
+        //1:判断是否是数组，是数组则每个JSON对象都添加相关属性
+        if (val.charAt(0) == '[')
+        {
+        	//为每个对象添加相关属性
+        	String tempV=val.substring(1,val.length()-2);
+        	String[] tempSum=tempV.split("},");
+        	StringBuilder str=new StringBuilder();
+        	for(int i=0;i<tempSum.length;i++)
+        	{
+        		str.append(SingleAttribute(tempSum[i]+(tempSum[i].charAt(tempSum[i].length()-1)=='}'?"":"}"))+",");
+        	}
+        	return String.format("[%s]",str.toString().substring(0, str.length()-1));
+        }
+        else
+        {
+        	return SingleAttribute(val);
+        }
+	}
+	/**
+	 * 单个JSON添加自定义属性
+	 * 
+	 * @param val
+	 *            JSON字符串
+	 * @return
+	 */
+	private String SingleAttribute(String val) {
+		// 在非Controler类中获取上下文方法
+		HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes())
+				.getRequest();
+		// HttpServletResponse response =
+		// ((ServletRequestAttributes)RequestContextHolder.getRequestAttributes()).getResponse();
+		// HttpServletResponse response =
+		// ((ServletWebRequest)RequestContextHolder.getRequestAttributes()).getResponse();
+		// ServletContext context =
+		// ContextLoader.getCurrentWebApplicationContext().getServletContext();
+		
+		//1:属性补充
+		StringBuilder strServerInfo =new StringBuilder();
+		SimpleDateFormat ServerTimeSdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");//获取当前时间
+		//1.1:匹配正确则需设置部分属性，URL和HappenDateTime
+		String urlMatch="[.]*?\"URL\":.*";
+		String happenMath="[.]*?\"HappenDateTime\":.*";
+		if(!Pattern.matches(urlMatch, val))
+		{
+			// 获取http header信息
+			String clientUri = request.getHeader("referer");
+			strServerInfo.append(String.format(",\"%s\":\"%s\"", "URL", clientUri));
+		}
+		if(!Pattern.matches(happenMath, val))
+		{
+			String HappenDateTime = ServerTimeSdf.format(new Date());
+			strServerInfo.append(String.format(",\"%s\":\"%s\"", "HappenDateTime", HappenDateTime));
+		}
+		//2:添加服务器的系统属性
+		//2.1:添加服务器时间
+		String ServerTime = ServerTimeSdf.format(new Date());
+		strServerInfo.append(String.format(",\"%s\":\"%s\"", "ServerTime", ServerTime));
+		//2.2:添加服务器IP
+		String localIp=getLocalIP();//获取本地IP地址
+		strServerInfo.append(String.format(",\"%s\":\"%s\"", "ServerIP", localIp));
+		val = val.substring(0, val.length() - 1) + strServerInfo.toString() + "}";
+        return val;
+	}
+	/**
+	 * 获取服务器端地址(本地测试有异常)
+	 * @return
+	 */
+	private String getServerIp() {
+		String SERVER_IP = "";
+		try {
+			Enumeration netInterfaces = NetworkInterface.getNetworkInterfaces();
+			InetAddress ip = null;
+			while (netInterfaces.hasMoreElements()) {
+				NetworkInterface ni = (NetworkInterface) netInterfaces.nextElement();
+				ip = (InetAddress) ni.getInetAddresses().nextElement();
+				SERVER_IP = ip.getHostAddress();
+				if (!ip.isSiteLocalAddress() && !ip.isLoopbackAddress() && ip.getHostAddress().indexOf(":") == -1) {
+					SERVER_IP = ip.getHostAddress();
+					break;
+				} else {
+					ip = null;
+				}
+			}
+		} catch (SocketException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return SERVER_IP;
+	}
+	/**
+	 * 获取本地地址
+	 * @return
+	 */
+	private  String getLocalIP() {
+		if(BPFlg.ServerLocalIp!=null&&BPFlg.ServerLocalIp.length()>0){
+			return BPFlg.ServerLocalIp;
+		}
+		InetAddress addr = null;
+		try {
+			addr = InetAddress.getLocalHost();
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			LogWritter.LogWritterInfo(ServerCommon.class, LogEnum.Error, "获取本地服务器IP地址异常,"+e.getMessage());
+		}
+
+		byte[] ipAddr = addr.getAddress();
+		String ipAddrStr = "";
+		for (int i = 0; i < ipAddr.length; i++) {
+			if (i > 0) {
+				ipAddrStr += ".";
+			}
+			ipAddrStr += ipAddr[i] & 0xFF;
+		}
+		// System.out.println(ipAddrStr);
+		BPFlg.ServerLocalIp=ipAddrStr;
+		return ipAddrStr;
+	}
+}

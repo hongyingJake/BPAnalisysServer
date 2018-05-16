@@ -1,0 +1,628 @@
+package com.bp;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.view.RedirectView;
+import org.springframework.web.servlet.view.json.MappingJackson2JsonView;
+
+import com.bp.bll.*;
+import com.bp.common.*;
+import com.bp.models.*;
+
+/**
+ * @author zyk
+ * @version 创建时间：2017年8月7日 下午5:54:38 埋点注册控制器 类说明
+ */
+@Controller
+public class BPRegistController {
+	private BPRegistDAL BPRegist;
+
+	public void setBPRegist(BPRegistDAL BPRegist) {
+		this.BPRegist = BPRegist;
+	}
+
+	public BPRegistDAL getBPRegist() {
+		return BPRegist;
+	}
+
+	/**
+	 * 埋点系统主页面
+	 * 
+	 * @param name
+	 * @return
+	 */
+	@RequestMapping("/BPIndex/Index")
+	public ModelAndView BPIndexIndex(
+			@RequestParam(value = "name", required = false, defaultValue = "Spring") String name) {
+		ModelAndView mv = new ModelAndView("BPIndex/Index");// 指定视图
+		// 向视图中添加所要展示或使用的内容，将在页面中使用
+		// mv.addObject("message", "jake");
+		// mv.addObject("name", name);
+		return mv;
+	}
+
+	/**
+	 * 框架左侧导航条
+	 */
+	@RequestMapping(value = "/BPIndex/Left", method = RequestMethod.GET)
+	public ModelAndView BPIndexLeft() {
+		ModelAndView mv = new ModelAndView("/BPIndex/Left");
+		return mv;
+	}
+
+	/**
+	 * 框架主页面
+	 */
+	@RequestMapping(value = "/BPIndex/MainPage", method = RequestMethod.GET)
+	public ModelAndView BPIndexMainPage() {
+		ModelAndView mv = new ModelAndView("/BPIndex/MainPage");
+		return mv;
+	}
+
+	/**
+	 * 框架分隔条
+	 */
+	@RequestMapping(value = "/BPIndex/Switch", method = RequestMethod.GET)
+	public ModelAndView BPIndexSwitch() {
+		ModelAndView mv = new ModelAndView("/BPIndex/Switch");
+		return mv;
+	}
+
+	/**
+	 * 获取当前登录用户
+	 * 
+	 * @param request
+	 * @return
+	 */
+	private BPSystemUserModel GetCurrentUser(HttpServletRequest request) {
+		Object obj = request.getSession().getAttribute("UserLogin");
+		if (obj != null) {
+			BPSystemUserModel model = (BPSystemUserModel) obj;
+			return model;
+		} else {
+			return new BPSystemUserModel();
+		}
+	}
+
+	/**
+	 * 记录操作日志
+	 * 
+	 * @param msg
+	 */
+	private void WriterLog(String msg) {
+		LogWritter.LogWritterInfo(this.getClass(), LogEnum.Warn, msg);
+	}
+
+	/**
+	 * 框架Top页面
+	 */
+	@RequestMapping(value = "/BPIndex/Top", method = RequestMethod.GET)
+	public ModelAndView BPIndexTop(HttpServletRequest request) {
+		ModelAndView mv = new ModelAndView("/BPIndex/Top");
+		Object obj = request.getSession().getAttribute("UserLogin");
+		if (obj != null) {
+			BPSystemUserModel model = (BPSystemUserModel) obj;
+			mv.addObject("UserName", model.UserName);
+		}
+		return mv;
+	}
+
+	/**
+	 * 埋点查询列表页面
+	 */
+	@RequestMapping(value = "/BPPoint/Index/{pageIndex}", method = RequestMethod.GET)
+	public ModelAndView BPPointIndex(HttpServletRequest request, @PathVariable int pageIndex) {
+		ModelAndView mv = new ModelAndView("/BPPoint/Index");
+		String BPName = request.getParameter("BPName") != null ? request.getParameter("BPName").trim() : "";
+		List<BPPointsModel> lst = null;
+		Object obj = request.getSession().getAttribute("UserLogin");
+		// 分页查询
+		int intThisPage = pageIndex == 0 ? 1 : pageIndex; // 当前页数
+		int intPageSize = 15; // 每页显示数量
+		int intCount = 0; // 总记录数
+		int intPageCount = 0; // 总共页数
+		int currentIndex = (intThisPage - 1) * intPageSize;// 当前记录索引
+
+		BPSystemUserModel model = null;
+		if (obj != null) {
+			model = (BPSystemUserModel) obj;
+		} else {
+			model = new BPSystemUserModel();
+		}
+		Integer[] backRowCount = new Integer[1];// 查询返回总共记录条数取第一个索引
+		// 用户只能够查看自己注册的埋点信息
+		if (BPName != null && BPName.trim().length() > 0) {
+			// 模糊查询
+			if (model.IsAdmin == 1) {
+				// 管理员查看全部
+				lst = BPRegist.GetBPPointsList(BPName, intThisPage, intPageSize, backRowCount);
+			} else {
+				lst = BPRegist.GetBPPointsListLike(model.UserId, BPName, intThisPage, intPageSize, backRowCount);
+			}
+			// 查询标识符重新注册到view
+			mv.addObject("BPName", BPName);
+		} else {
+			if (model.IsAdmin == 1) {
+				// 管理员查看全部
+				lst = BPRegist.GetBPPointsList("", intThisPage, intPageSize, backRowCount);
+			} else {
+				lst = BPRegist.GetBPPointsListByRegUId(model.UserId, intThisPage, intPageSize, backRowCount);
+			}
+		}
+		if (lst != null) {
+			// 转变注册用户ID为用户名称(利于页面查看)
+			Map<String, String> temp = new HashMap<String, String>();// 临时用户和用户ID数据
+			for (BPPointsModel m : lst) {
+				// m.setRegUserId(model.UserName);
+				if (temp.containsKey(m.getRegUserId())) {
+					m.setRegUserId(temp.get(m.getRegUserId()));
+				} else {
+					BPSystemUserModel u = BPRegist.GetUserByUserId(m.getRegUserId());
+					if (u != null) {
+						m.setRegUserId(u.UserName);
+						temp.put(m.getRegUserId(), u.UserName);
+					}
+				}
+			}
+		} else {
+			lst = new ArrayList<BPPointsModel>();// 空数据
+		}
+		intCount = backRowCount[0];
+		intPageCount = (int) Math.ceil(intCount * 1.0 / intPageSize);// 计算总页数
+		String strUrl = request.getContextPath() + "/BPPoint/Index/";
+		String pageNav = PagerHelper.strPage(intCount, intPageSize, intPageCount, intThisPage, strUrl);
+		mv.addObject("BPPointsLst", lst);
+		mv.addObject("pageNav", pageNav);
+		mv.addObject("currentIndex", currentIndex);// 记录当前索引数
+		mv.addObject("ContextPath", request.getContextPath());
+		return mv;
+	}
+
+	/**
+	 * 埋点注册页面
+	 */
+	@RequestMapping(value = "/BPPoint/RegisterBP", method = RequestMethod.GET)
+	public ModelAndView BPPointRegist(HttpServletRequest request) {
+		ModelAndView mv = new ModelAndView("/BPPoint/RegisterBP");
+		// 保存请求地址
+		mv.addObject("ContextPath", request.getContextPath());
+		return mv;
+	}
+
+	/**
+	 * 获取埋点主表信息
+	 * 
+	 * @param BPId
+	 *            埋点ID
+	 * @return
+	 */
+	@RequestMapping(value = "/BPPoint/RegisterBP/{BPId}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ModelAndView BPPointByBPId(HttpServletRequest request, @PathVariable("BPId") String BPId) {
+		ModelAndView mv = new ModelAndView("/BPPoint/RegisterBP");
+		BPPointsModel model = BPRegist.GetBPPointsByBPId(BPId);
+		if (model != null) {
+			mv.addObject("BPFlg", model.getBPFlg());
+			mv.addObject("BPName", model.getBPName());
+			mv.addObject("BPDemo", model.getBPDemo());
+			mv.addObject("BPId", model.getBPId());
+
+		}
+		// 保存请求地址
+		mv.addObject("ContextPath", request.getContextPath());
+		return mv;
+	}
+
+	/**
+	 * 查看是否存在已注册的埋点key
+	 * 
+	 * @param BPFlg
+	 *            埋点标识
+	 * @return
+	 */
+	@RequestMapping(value = "/BPPoint/HaveBPPoint/{BPFlg}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+	public @ResponseBody ModelAndView BPPointByBPFlg(@PathVariable("BPFlg") String BPFlg) {
+		Map<String, String> map = new HashMap<String, String>();
+		BPPointsModel model = BPRegist.GetBPPointsByBPFlg(BPFlg);
+		String haveBPPoint = "1";// 是否存在埋点标识 1：存在 0：不存在
+		if (model != null) {
+			haveBPPoint = "1";
+		} else {
+			haveBPPoint = "0";
+		}
+		map.put("haveBPPoint", haveBPPoint);
+		return new ModelAndView(new MappingJackson2JsonView(), map);
+	}
+
+	/**
+	 * 埋点键集合注册相关
+	 * 
+	 * @param request
+	 * @return
+	 */
+	@RequestMapping(value = "/BPPoint/BPSubPoints", method = RequestMethod.POST)
+	public @ResponseBody ModelAndView BPPointSubPoint(HttpServletRequest request) {
+		String Operation = request.getParameter("Operation");
+		Map<String, String> map = new HashMap<String, String>();
+		map.put("Status", "0");
+		map.put("Msg", "请求参数错误，请联系管理员！");
+		ModelAndView view = new ModelAndView(new MappingJackson2JsonView(), map);
+		if (Operation != null) {
+			if (Operation.equals("RegisterBP")) {
+				// 添加埋点集合
+				view = AddBPSubPoint(request);
+			} else if (Operation.equals("CheckBPIsHave")) {
+				// 判断埋点集合中键值对信息是否存在
+				view = CheckBPIsHave(request);
+			} else if (Operation.equals("DeleteKeyByKeyFlg")) {
+				// 删除埋点集合键值对
+				view = DeleteKeyByKeyFlg(request);
+			} else if (Operation.equals("GetAllKeys")) {
+				// 获取所有集合面对键值对
+				view = GetAllKeys(request);
+			}
+		}
+		return view;
+
+	}
+
+	/**
+	 * 添加埋点键值集合
+	 * 
+	 * @param request
+	 * @return
+	 */
+	private ModelAndView AddBPSubPoint(HttpServletRequest request) {
+		// 1添加埋点集合键值对
+		String BPId = request.getParameter("BPId");
+		String KeyFlg = request.getParameter("KeyFlg");
+		String KeyInfo = request.getParameter("KeyInfo");
+		BPSubPointsModel model = new BPSubPointsModel();
+		model.BPId = Integer.parseInt(BPId);
+		model.BPKName = KeyFlg;
+		model.BPKValue = KeyInfo;
+		model = BPRegist.AddBPSubPoints(model);
+		// 2向埋点缓存集合中添加键集合
+		BPPointsModel bpModel = BPRegist.GetBPPointsByBPId(BPId);
+		if (bpModel != null) {
+			// 更新缓存中的键集合
+			BPFlg.AddBpKValue(bpModel.getBPFlg(), KeyFlg, KeyInfo);
+			// 更新埋点主表相关更新信息（最后更新时间、最后更新人员）
+			BPSystemUserModel usr = GetCurrentUser(request);
+			bpModel.setLastUpDate(new Date());
+			bpModel.setLastUpUserId(usr.UserId);
+			BPRegist.UpdateBPPoints(bpModel);
+		}
+		// 3记录操作日志
+		BPSystemUserModel user = GetCurrentUser(request);
+		String msg = String.format("用户ID：%s 用户名称：%s,在埋点Id：%s，中添加键 ,键名：%s", user.BPUserId, user.UserName, BPId, KeyFlg);
+		WriterLog(msg);
+		// 4获取全部键集合信息
+		return GetAllKeysAndNamsByBPId("BPSubPoints", Integer.parseInt(BPId));
+	}
+
+	/**
+	 * 获取埋点键的键值集合信息，返回字典集合
+	 * 
+	 * @param DataFlg
+	 * @param BPId
+	 * @return
+	 */
+	private ModelAndView GetAllKeysAndNamsByBPId(String DataFlg, int BPId) {
+		List<BPSubPointsModel> lst = BPRegist.GetBPSubPointsList(BPId);
+		Map<String, Map<String, String>> map = new HashMap<String, Map<String, String>>();
+		Map<String, String> maps = new HashMap<String, String>();
+		for (BPSubPointsModel m : lst) {
+			maps.put(m.BPKName, m.BPKValue);
+		}
+		map.put(DataFlg, maps);
+		return new ModelAndView(new MappingJackson2JsonView(), map);
+	}
+
+	/**
+	 * 判断埋点集合中键值对信息是否存在
+	 * 
+	 * @param request
+	 * @return
+	 */
+	private ModelAndView CheckBPIsHave(HttpServletRequest request) {
+		String BPId = request.getParameter("BPId");
+		String KeyFlg = request.getParameter("KeyFlg");
+		BPSubPointsModel model = BPRegist.GetBPSubPointsByKeyName(Integer.parseInt(BPId), KeyFlg);
+		Map<String, String> map = new HashMap<String, String>();
+		if (model != null) {
+			map.put("HaveBPSubPoint", "1");
+		} else {
+			map.put("HaveBPSubPoint", "0");
+		}
+		return new ModelAndView(new MappingJackson2JsonView(), map);
+	}
+
+	/**
+	 * 删除埋点集合键值对
+	 * 
+	 * @param request
+	 * @return
+	 */
+	private ModelAndView DeleteKeyByKeyFlg(HttpServletRequest request) {
+		// 1删除埋点键集合信息
+		String BPId = request.getParameter("BPId");
+		String KeyFlg = request.getParameter("KeyFlg");
+		// 2埋点缓存集合中删除键集合
+		BPPointsModel bpModel = BPRegist.GetBPPointsByBPId(BPId);
+		// 如果埋点为快速注册埋点则不允许删除键，须有管理员操作库
+//		if (bpModel.getBPFlg().equals(BPFlg.BPSpeedFlg)) {
+//			Map<String, String> map = new HashMap<String, String>();
+//			map.put("BPSpeedInfo", "快速埋点注册中键值信息不允许删除，需连续管理员!");
+//			return new ModelAndView(new MappingJackson2JsonView(), map);
+//		}
+		BPRegist.DeleteBPSubPoints(Integer.parseInt(BPId), KeyFlg);
+		if (bpModel != null) {
+			// 更新缓存信息
+			BPFlg.RemoveBpKValue(bpModel.getBPFlg(), KeyFlg);
+			// 更新埋点主表相关更新信息（最后更新时间、最后更新人员）
+			BPSystemUserModel usr = GetCurrentUser(request);
+			bpModel.setLastUpDate(new Date());
+			bpModel.setLastUpUserId(usr.UserId);
+			BPRegist.UpdateBPPoints(bpModel);
+		}
+		// 3记录操作日志
+		BPSystemUserModel user = GetCurrentUser(request);
+		String msg = String.format("用户ID：%s 用户名称：%s,在埋点Id：%s，中删除键 ,键名：%s", user.BPUserId, user.UserName, BPId, KeyFlg);
+		WriterLog(msg);
+		// 4获取全部键集合信息
+		return GetAllKeysAndNamsByBPId("BPSubPoints", Integer.parseInt(BPId));
+	}
+
+	/**
+	 * 获取所有埋点集合键值对
+	 * 
+	 * @param request
+	 * @return
+	 */
+	private ModelAndView GetAllKeys(HttpServletRequest request) {
+		String BPId = request.getParameter("BPId");
+		return GetAllKeysAndNamsByBPId("BPSubPoints", Integer.parseInt(BPId));
+	}
+
+	/**
+	 * 埋点主表注册Action
+	 * 
+	 * @return
+	 */
+	@RequestMapping(value = "/BPPoint/RegisterBP", method = RequestMethod.POST)
+	public ModelAndView BPPointRegisterBP(HttpServletRequest request) {
+		ModelAndView mv = new ModelAndView("/BPPoint/RegisterBP");
+		String BPName = request.getParameter("BPName").trim();
+		String BPFlg = request.getParameter("BPFlg") != null ? request.getParameter("BPFlg").trim() : "";
+		String BPDemo = request.getParameter("BPDemo").trim();
+		String BPId = request.getParameter("BPId").trim();
+		BPPointsModel model = new BPPointsModel();
+		// 获取登录用户信息
+		Object obj = request.getSession().getAttribute("UserLogin");
+		BPSystemUserModel user = null;
+		if (obj != null) {
+			user = (BPSystemUserModel) obj;
+		} else {
+			user = new BPSystemUserModel();
+		}
+		String Logmsg = "";
+		// 判断是插入还是更新
+		boolean isAdd = true;
+		if (BPId != null && BPId.trim().length() > 0) {
+			isAdd = false;
+			// 查询原数据进行更新
+			BPPointsModel oldM = BPRegist.GetBPPointsByBPId(BPId);
+			if (oldM != null) {
+				String ss = "";
+				if (!oldM.getBPName().equals(BPName)) {
+					ss += ", 更新埋点名称：" + oldM.getBPName() + "->" + BPName;
+				}
+				if (!oldM.getBPDemo().equals(BPDemo)) {
+					ss += ", 更新埋点备注：" + oldM.getBPDemo() + "->" + BPDemo;
+				}
+				Logmsg = String.format("用户ID：%s 用户名称：%s,在埋点Id：%s %s", user.BPUserId, user.UserName, model.getBPId(),
+						ss);
+				oldM.setBPName(BPName);
+				oldM.setBPDemo(BPDemo);
+				model = oldM;
+			}
+		}
+		// 插入或更新信息
+		if (isAdd) {
+			model.setRegisterDate(new Date());
+			model.setIsValid(1);// 1有效 0无效
+			model.setRegUserId(user.UserId);
+			model.setLastUpDate(new Date());
+			model.setLastUpUserId(user.UserId);
+			model.setBPFlg(BPFlg);
+			model.setBPName(BPName);
+			model.setBPDemo(BPDemo);
+			model = BPRegist.AddBPPoints(model);
+			Logmsg = String.format("用户ID：%s 用户名称：%s,注册埋点Id：%s，埋点标识符：%s", user.BPUserId, user.UserName, model.getBPId(),
+					model.getBPFlg());
+		} else {
+			// 更新
+			model.setLastUpDate(new Date());
+			model.setLastUpUserId(user.UserId);
+			BPRegist.UpdateBPPoints(model);
+
+		}
+		// Model 注册到页面
+		mv.addObject("BPFlg", model.getBPFlg());
+		mv.addObject("BPName", model.getBPName());
+		mv.addObject("BPDemo", model.getBPDemo());
+		mv.addObject("BPId", model.getBPId());
+		// 保存请求地址
+		mv.addObject("ContextPath", request.getContextPath());
+		// 3记录操作日志
+		WriterLog(Logmsg);
+		return mv;
+	}
+
+	/**
+	 * Ajax请求埋点List集合页面 ---废弃
+	 */
+	@RequestMapping(value = "/BPPoint/BPPointList", method = RequestMethod.POST)
+	public @ResponseBody ModelAndView BPPointBPPointList(HttpServletRequest request) {
+		String BPName = request.getParameter("BPName").trim();
+		List<BPPointsModel> lst = null;
+		Object obj = request.getSession().getAttribute("UserLogin");
+		// 分页查询
+		int intThisPage = 1; // 当前页数
+		int intPageSize = 2; // 每页显示数量
+		int intCount = 0; // 总记录数
+		int intPageCount = 0; // 总共页数
+
+		BPSystemUserModel model = null;
+		if (obj != null) {
+			model = (BPSystemUserModel) obj;
+		} else {
+			model = new BPSystemUserModel();
+		}
+		Integer[] backRowCount = new Integer[1];// 查询返回总共记录条数取第一个索引
+		// 用户只能够查看自己注册的埋点信息
+		if (BPName != null && BPName.trim().length() > 0) {
+			// 模糊查询
+			lst = BPRegist.GetBPPointsListLike(model.UserId, BPName, intThisPage, intPageSize, backRowCount);
+		} else {
+			lst = BPRegist.GetBPPointsListByRegUId(model.UserId, intThisPage, intPageSize, backRowCount);
+		}
+		intCount = backRowCount[0];
+		intPageCount = (int) Math.ceil(intCount * 1.0 / intPageSize);// 计算总页数
+		String strUrl = "Index/";
+		String pageNav = PagerHelper.strPage(intCount, intPageSize, intPageCount, intThisPage, strUrl);
+
+		if (lst != null) {
+			// 转变注册用户ID为用户名称(利于页面查看)
+			for (BPPointsModel m : lst) {
+				m.setRegUserId(model.UserName);
+			}
+		} else {
+			lst = new ArrayList<BPPointsModel>();// 空数据
+		}
+		Map<String, List<BPPointsModel>> map = new HashMap<String, List<BPPointsModel>>();
+		map.put("BPPoints", lst);
+		// 存放导航数据
+		List<BPPointsModel> page = new ArrayList<BPPointsModel>();
+		BPPointsModel p = new BPPointsModel();
+		p.setBPName(pageNav);
+		page.add(p);
+		map.put("pageNav", page);
+		return new ModelAndView(new MappingJackson2JsonView(), map);
+	}
+
+	/**
+	 * 用户登录页面
+	 * 
+	 * @return
+	 */
+	@RequestMapping(value = "/BPRegist/Login", method = RequestMethod.GET)
+	public ModelAndView BPRegistLogin(HttpServletRequest request) {
+		ModelAndView mv = new ModelAndView("/BPRegist/Login");
+		CookieUtility cookie = new CookieUtility();
+		mv.addObject("UserLoginName", cookie.getCookieByName(request, "UserLoginName"));
+		return mv;
+	}
+
+	/**
+	 * 用户登录Action
+	 * 
+	 * @param request
+	 * @return
+	 */
+	@RequestMapping(value = "/BPRegist/Login", method = RequestMethod.POST)
+	public ModelAndView BPRegistLogin(HttpServletRequest request, HttpServletResponse response) {
+		String UserLoginName = request.getParameter("UserLoginName").trim();
+		String UserLoginPwd = Md5Utils.MD5Encode(request.getParameter("UserLoginPwd"), "UTF-8", true);
+		String IsRememberMe = request.getParameter("IsRememberMe");
+		BPSystemUserModel model = BPRegist.Login(UserLoginName, UserLoginPwd);
+		if (model != null) {
+			// 1:判断是否记录我，记录则保存cookie，否则清空cookie
+			CookieUtility cookie = new CookieUtility();
+			if (IsRememberMe != null) {
+				// 记录
+				cookie.addCookie(response, "UserLoginName", model.UserLoginName, 60 * 60 * 24 * 7);// 保存一周
+			} else {
+				cookie.deleteCookie(request, response, "UserLoginName");
+			}
+			// 2:保存到Session
+			request.getSession().setAttribute("UserLogin", model);
+			// 3:记录操作日志
+			String msg = String.format("用户ID：%s 用户名称：%s,登录系统", model.BPUserId, model.UserName);
+			WriterLog(msg);
+			// 4：调整到主页面
+			return new ModelAndView("redirect:/BPIndex/Index");
+		} else {
+			ModelAndView mv = new ModelAndView("BPRegist/Login");
+			mv.addObject("loginInfo", "登录名称或密码错误，请重新登录！");
+			return mv;
+		}
+	}
+
+	/**
+	 * 用户注册页面
+	 * 
+	 * @return
+	 */
+	@RequestMapping("/BPRegist/Register")
+	public ModelAndView BPRegistRegister() {
+		ModelAndView mv = new ModelAndView("BPRegist/Register");
+		return mv;
+	}
+
+	/**
+	 * 用户注册Action
+	 * 
+	 * @return
+	 */
+	@RequestMapping(value = "/BPRegist/Successed", method = RequestMethod.POST)
+	public ModelAndView BPRegistSuccessed(HttpServletRequest request) {
+		BPSystemUserModel model = new BPSystemUserModel();
+		ModelAndView mv = new ModelAndView("BPRegist/BPRegister");
+		// 初始化其他属性信息
+		model.UserId = UUID.randomUUID().toString();
+		model.UserLoginName = request.getParameter("UserLoginName").trim();
+		model.UserLoginPwd = Md5Utils.MD5Encode(request.getParameter("UserLoginPwd"), "UTF-8", true);
+		model.UserName = request.getParameter("UserName").trim();
+		model.UserCompanyName = request.getParameter("UserCompanyName").trim();
+		model.UserPhone = request.getParameter("UserPhone").trim();
+		model.Demo = request.getParameter("Demo").trim();
+		model.RegisterDate = new Date();
+		model.IsValid = 1;// 1：有效 0：无效
+		model.IsAdmin = 0;// 1:是管理员 0：非管理员 管理员可查看所有信息
+		boolean isSuccess = BPRegist.AddSystemUser(model);
+		if (isSuccess) {
+			// 3记录操作日志
+			String msg = String.format("新注册用户，用户UserId：%s 用户名称：%s", model.UserId, model.UserName);
+			WriterLog(msg);
+			// 跳转到登录页面
+			return new ModelAndView(new RedirectView("Login"));
+			// 重定向方法
+			// return "redirect:/ toList ";
+			// return new ModelAndView("redirect:/toList");
+		} else {
+			mv.addObject("errMsg", "用户注册失败，请联系管理员！");
+			return mv;
+		}
+
+	}
+
+}

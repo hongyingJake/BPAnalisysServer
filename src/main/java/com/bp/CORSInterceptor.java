@@ -1,0 +1,42 @@
+package com.bp;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.web.servlet.ModelAndView;
+
+/**
+ * Spring 拦截器定义类
+ * 
+ * @author aaa
+ *
+ */
+public class CORSInterceptor implements HandlerInterceptor {
+
+	public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler)
+			throws Exception {
+		// 添加Header信息，支持跨域请求
+		// 跨域访问特性（HTML5特性，IE8以下不支持）
+		// 客户端采用POST跨域请求API，AJAX无法实现POST跨域请求，通过HTML5特性实现。支持HTML5的浏览器
+		response.setHeader("Access-Control-Allow-Origin", "*");
+		response.setHeader("Access-Control-Allow-Methods", "POST,GET,OPTIONS,DELETE");
+		response.setHeader("Access-Control-Max-Age", "3600");//表明在3600秒内，不需要再发送预检验请求，可以缓存该结果
+		response.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+		//表明它允许跨域请求包含content-type头
+		response.setHeader("Allow","POST");
+		return true;
+	}
+
+	public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler,
+			ModelAndView modelAndView) throws Exception {
+		// TODO Auto-generated method stub
+	}
+
+	public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex)
+			throws Exception {
+		// TODO Auto-generated method stub
+
+	}
+
+}

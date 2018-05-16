@@ -1,0 +1,58 @@
+package com.bp.msgrealization;
+
+import java.util.List;
+
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+import com.alibaba.dubbo.common.logger.Level;
+import com.alibaba.dubbo.common.logger.LoggerFactory;
+import com.bp.msginterface.IBaseMQ;
+import com.mt.zx.buryingpoint.interfaces.IProviderService;
+
+/**
+* @author zyk
+* @version 创建时间：2017年8月7日 上午10:49:55
+* kafka消息队列的实现  类说明
+*/
+public class KafkaMQStorage implements IBaseMQ {
+	private static IProviderService ps;
+	public boolean SaveMQInfo(String tabName,Object val) {
+		// TODO Auto-generated method stub
+		if(ps==null)
+		{
+			//设置Dubbo的日志级别，否则所有日志都会输出到Log4j文件中，导致文件过大
+			LoggerFactory.setLevel(Level.ERROR);
+			String[] ss=new String[]{"customer.xml"};
+			ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext(ss);
+			context.start();
+			ps=(IProviderService)context.getBean("providerService");
+		}
+		ps.saveJsonDataToKafka(tabName, tabName, val.toString());
+		return true;
+	}
+
+	public List<String> GetMQInfo() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/**
+	 * 判断大数据服务器是否可用
+	 */
+	public boolean CanUseMQ() {
+		//重新构造对象，无异常则可用，否则不可用
+		try{
+			String[] ss=new String[]{"customer.xml"};
+			ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext(ss);
+			context.start();
+			ps=(IProviderService)context.getBean("providerService");
+			return true;
+		}
+		catch(Exception e){
+			return false;
+		}
+		
+	}
+
+
+}

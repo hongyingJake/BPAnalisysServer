@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<customerProps>
+	<!--是否开启数据校验 1：开启 2：关闭-->
+	<OpenValid>1</OpenValid>
+	<!-- 消息队列类型 1:RedisMQ(未实现) 2:KafKaMQ(默认)-->
+	<MQInfoType>2</MQInfoType>
+	<!--MQ服务停用后临时存储到本地文件夹中，替代一个简单文本队列  注意：系统要有创建读取权限-->
+	<ShareDir>C:\MTBPFileInfo</ShareDir>
+	<!--Web 服务监视线程空闲时休眠时间（单位:秒） -->
+	<ThreadFreeTime>3</ThreadFreeTime>
+</customerProps>
